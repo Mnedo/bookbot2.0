@@ -472,6 +472,7 @@ def book(update, context):
                                             context.chat_data['keyboard'].sure.split('-')[0], '%Y-%m-%d %H:%M'))
                 )
                 ###
+                print(due)
                 due = 900
                 context.job_queue.run_once(
                     task,
