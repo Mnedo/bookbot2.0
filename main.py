@@ -335,17 +335,17 @@ def get_info(update, context):
             nickname = ''
     except KeyError:
         nickname = ''
-    time = datetime.datetime.now().strftime('%d.%m.%Y %H:%M')
     if 'users' in context.bot_data.keys():
         if context.chat_data['user'].id in context.bot_data['users'].keys():
             phone = context.bot_data['users'][id]['phone']
+            date = context.bot_data['users'][id]['reg_time'].strftime('%d.%m.%Y в %H:%M')
     else:
         phone = 0
     txt = surname + ' ' + name + '\n'
     txt += 'user_id - ' + str(id) + (' - ' + nickname + '\n') if nickname else '\n'
     txt += ('phone: ' + str(phone) + '\n') if phone else 'phone number is not specified\n'
     txt += 'Дата создания:\n'
-    txt += ' в '.join(str(time).split()) + '\n'
+    txt += date + '\n'
     if 'keyboard' in context.chat_data.keys():
         if context.chat_data['keyboard'].is_admin():
             txt += 'role: admin\n'
@@ -448,7 +448,7 @@ def variant(update, context):
         dtm_end = datetime.datetime.strptime(
             ' '.join([update['message']['text'].split()[1], update['message']['text'].split()[5]]), '%d.%m.%Y %H:%M')
         context.chat_data['keyboard'].sign_out(dtm_start, dtm_end)
-        reply_keyboard = [['/Главное меню', '/Контакты']]
+        reply_keyboard = [['/Контакты', '/Главное меню']]
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=80)
         for el in context.bot_data['users'][update.message.chat_id]['events']:
             if el[0] == dtm_start and el[1] == dtm_end:
