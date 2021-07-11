@@ -30,9 +30,9 @@ class Buttons:
 
     def set_time(self, dttm):
         ff = True
-        hh = int(datetime.datetime.today().strftime('%H'))
-        mm = int(datetime.datetime.today().strftime('%M'))
-        now = datetime.datetime.today() - datetime.timedelta(days=1, hours=hh, minutes=mm)
+        hh = int((datetime.datetime.today() + datetime.timedelta(hours=3)).strftime('%H'))
+        mm = int((datetime.datetime.today() + datetime.timedelta(hours=3)).strftime('%M'))
+        now = datetime.datetime.today() + datetime.timedelta(hours=3) - datetime.timedelta(days=1, hours=hh, minutes=mm)
         while ff:
             now += datetime.timedelta(days=1)
             if now.strftime('%d.%m') == dttm:
@@ -74,8 +74,8 @@ class Buttons:
         if command == 'next':
             self.nextlevel += 1
             counter = 0
-            var = datetime.datetime.today() - datetime.timedelta(days=1)
-            self.vt = datetime.datetime.today()
+            var = datetime.datetime.today() + datetime.timedelta(hours=3) - datetime.timedelta(days=1)
+            self.vt = datetime.datetime.today() + datetime.timedelta(hours=3)
             mainrow = []
             while len(mainrow) <= 2:
                 counter += 1
@@ -109,13 +109,14 @@ class Buttons:
             self.nextlevel = 0
             if command == 'appointment':
                 # %w - номер дня недели
-                var = datetime.datetime.today() - datetime.timedelta(days=1)
-                self.vt = datetime.datetime.today()
+                var = datetime.datetime.today() - datetime.timedelta(days=1) + datetime.timedelta(hours=3)
+                self.vt = datetime.datetime.today() + datetime.timedelta(hours=3)
                 mainrow = []
                 while len(mainrow) <= 2:
                     var += datetime.timedelta(days=1)
                     if self.is_valid_day(var):
-                        if var.strftime('%d.%m') == datetime.datetime.today().strftime('%d.%m'):
+                        if var.strftime('%d.%m') == (datetime.datetime.today() + datetime.timedelta(hours=3)).strftime(
+                                '%d.%m'):
                             varc = '/Сегодня ' + var.strftime('%d.%m')
                         else:
                             varc = '/' + self.rusific(var.strftime('%w')) + ' ' + var.strftime('%d.%m')
@@ -178,7 +179,7 @@ class Buttons:
                 if self.ctx['events']:
                     text = 'Выберите вариант, который хотите отменить.'
                     for el in self.ctx['events']:
-                        if el[0] > datetime.datetime.today():
+                        if el[0] > datetime.datetime.today() + datetime.timedelta(hours=3):
                             self.keyboard.append(['/Запись ' + el[0].strftime('%d.%m.%Y') + ' в ' +
                                                   el[0].strftime('%H:%M') + ' - ' + el[1].strftime('%H:%M')])
                 else:
