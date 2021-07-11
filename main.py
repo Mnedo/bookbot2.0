@@ -249,7 +249,7 @@ def data_clear(context):
     for id in context.bot_data['users'].keys():
         for event in context.bot_data['users'][id]['events']:
             valid += 1
-            if event[0] < datetime.datetime.today():
+            if event[0] < datetime.datetime.today() + datetime.timedelta(hours=3):
                 counter += 1
                 del context.bot_data['users'][id]['events'][context.bot_data['users'][id]['events'].index(event)]
     print('{} posts has deleted.'.format(counter))
@@ -264,7 +264,7 @@ def start(update, context):
         if 'users' not in context.bot_data.keys():
             context.job_queue.run_monthly(data_clear, when=datetime.time(14), day=11, context=context)
             context.bot_data['users'] = {context.chat_data['user'].id: {
-                'reg_time': datetime.datetime.strptime(datetime.datetime.today().strftime('%H:%M %d.%m.%Y'),
+                'reg_time': datetime.datetime.strptime((datetime.datetime.today() + datetime.timedelta(hours=3)).strftime('%H:%M %d.%m.%Y'),
                                                        '%H:%M %d.%m.%Y'),
                 'events': [],
                 'phone': 0,
@@ -272,7 +272,7 @@ def start(update, context):
         else:
             if context.chat_data['user'].id not in context.bot_data['users'].keys():
                 context.bot_data['users'][context.chat_data['user'].id] = {
-                    'reg_time': datetime.datetime.strptime(datetime.datetime.today().strftime('%H:%M %d.%m.%Y'),
+                    'reg_time': datetime.datetime.strptime((datetime.datetime.today() + datetime.timedelta(hours=3)).strftime('%H:%M %d.%m.%Y'),
                                                            '%H:%M %d.%m.%Y'),
                     'events': [],
                     'phone': 0,
@@ -341,10 +341,10 @@ def get_info(update, context):
             date = context.bot_data['users'][id]['reg_time'].strftime('%d.%m.%Y в %H:%M')
         else:
             phone = 0
-            date = datetime.datetime.today().strftime('%d.%m.%Y в %H:%M')
+            date = (datetime.datetime.today() + datetime.timedelta(hours=3)).strftime('%d.%m.%Y в %H:%M')
     else:
         phone = 0
-        date = datetime.datetime.today().strftime('%d.%m.%Y в %H:%M')
+        date = (datetime.datetime.today() + datetime.timedelta(hours=3)).strftime('%d.%m.%Y в %H:%M')
     txt = surname + ' ' + name + '\n'
     txt += 'user_id - ' + str(id) + (' - ' + nickname + '\n') if nickname else '\n'
     txt += ('phone: ' + str(phone) + '\n') if phone else 'phone number is not specified\n'
@@ -550,7 +550,7 @@ def book(update, context):
             chat_id = update.message.chat_id
             tmd = []
             for el in context.bot_data['users'][context.chat_data['user'].id]['events']:
-                if datetime.datetime.today() - el[2] < datetime.timedelta(
+                if datetime.datetime.today() + datetime.timedelta(hours=3) - el[2] < datetime.timedelta(
                         hours=1):
                     tmd.append(el[0])
             if len(tmd) > 2:
@@ -564,7 +564,7 @@ def book(update, context):
                 due = int((datetime.datetime.strptime((str(context.chat_data['keyboard'].timedate).split()[0] + ' ' + \
                                                        context.chat_data['keyboard'].sure.split('-')[0] + ':00'),
                                                       '%Y-%m-%d %H:%M:%S') - datetime.datetime.today() - datetime.timedelta(
-                    hours=1)).total_seconds())
+                    hours=1) + datetime.timedelta(hours=3)).total_seconds())
                 context.job_queue.run_once(
                     task,
                     due,
