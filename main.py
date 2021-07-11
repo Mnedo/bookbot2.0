@@ -172,6 +172,37 @@ def del_superuser(update, context):
             chat_id=update.message.chat_id)
 
 
+def set_timezone(update, context):
+    global SUPERUSERS
+    try:
+        timezone = int(context.args[0])
+        if context.chat_data['keyboard'].is_admin():
+            ltzn = context.bot_data['tzn']
+            context.bot_data['tz'] = datetime.timezone(datetime.timedelta(hours=timezone))
+            context.bot_data['tzn'] = timezone
+            context.chat_data['keyboard'].set_tz(datetime.timezone(datetime.timedelta(hours=timezone)), timezone)
+            for id in context.bot_data['users']:
+                context.bot_data['users'][id]['reg_time'] = context.bot_data['users'][id][
+                                                                'reg_time'] - datetime.timedelta(
+                    hours=ltzn) + datetime.timedelta(hours=timezone)
+                for event in context.bot_data['users'][id]['events']:
+                    event[0] = event[0] - datetime.timedelta(hours=ltzn) + datetime.timedelta(hours=timezone)
+                    event[1] = event[1] - datetime.timedelta(hours=ltzn) + datetime.timedelta(hours=timezone)
+                    event[2] = event[2] - datetime.timedelta(hours=ltzn) + datetime.timedelta(hours=timezone)
+                context.bot_data['users'][id]['info'] = get_info(update, context)
+            context.bot.send_message(
+                text='Часовой пояс был успешно изменён. База данных обновлена. UTC+{}:00'.format(timezone),
+                chat_id=update.message.chat_id)
+    except (IndexError, ValueError):
+        context.bot.send_message(
+            text='Использование: /set_timezone <int: hours + UTC>\n default: UTC+03:00 MSK+00:00',
+            chat_id=update.message.chat_id)
+    except Exception:
+        context.bot.send_message(
+            text='Произошла ошибка, попробуйте ещё раз. Если ошибка повторится, введите /start .',
+            chat_id=update.message.chat_id)
+
+
 def send_feedbacks(update, context):
     try:
         if context.chat_data['keyboard'].is_admin():
@@ -264,7 +295,7 @@ def start(update, context):
         if 'user' not in context.chat_data.keys():
             context.chat_data['user'] = User(update['message']['chat']['id'], update.message.chat_id)
         if 'users' not in context.bot_data.keys():
-            context.job_queue.run_monthly(data_clear, when=datetime.time(14), day=11, context=context)
+            context.job_queue.run_monthly(data_clear, when=datetime.time(5), day=1, context=context)
             context.bot_data['users'] = {context.chat_data['user'].id: {
                 'reg_time': datetime.datetime.strptime(
                     datetime.datetime.now(tz=context.bot_data['tz']).strftime('%H:%M %d.%m.%Y'),
@@ -345,12 +376,15 @@ def get_info(update, context):
         if context.chat_data['user'].id in context.bot_data['users'].keys():
             phone = context.bot_data['users'][id]['phone']
             date = context.bot_data['users'][id]['reg_time'].strftime('%d.%m.%Y в %H:%M')
+            date += ' UTC+{}:00'.format(str(context.bot_data['tzn']))
         else:
             phone = 0
             date = datetime.datetime.now(tz=context.bot_data['tz']).strftime('%d.%m.%Y в %H:%M')
+            date += ' UTC+{}:00'.format(str(context.bot_data['tzn']))
     else:
         phone = 0
         date = datetime.datetime.now(tz=context.bot_data['tz']).strftime('%d.%m.%Y в %H:%M')
+        date += ' UTC+{}:00'.format(str(context.bot_data['tzn']))
     txt = surname + ' ' + name + '\n'
     txt += 'user_id - ' + str(id) + (' - ' + nickname + '\n') if nickname else '\n'
     txt += ('phone: ' + str(phone) + '\n') if phone else 'phone number is not specified\n'
@@ -731,6 +765,7 @@ ch.extra_handler(book)
 dp = updater.dispatcher
 
 ##### example.register('старт', start, '!')
+dp.add_handler(CommandHandler("set_timezone", set_timezone, pass_chat_data=True))
 ch.register("Статус", info)
 ch.register("Сменить телефон", change_phone)
 dp.add_handler(CommandHandler("start", start, pass_chat_data=True))

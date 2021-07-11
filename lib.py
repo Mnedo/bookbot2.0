@@ -68,7 +68,8 @@ class Buttons:
                 self.keyboard.append(['/admin', '/user_info', '/main_menu'])
                 self.keyboard.append(['/add_superuser', '/del_superuser'])
                 self.keyboard.append(['/set_contact_number', '/set_address'])
-                self.keyboard.append(['/set_description', '/get_feedbacks'])
+                self.keyboard.append(['/set_description', '/set_timezone'])
+                self.keyboard.append(['/get_feedbacks'])
         else:
             self.keyboard.append(['/Главное меню'])
 
@@ -137,9 +138,12 @@ class Buttons:
             elif command == 'registration':
                 sp = self.calendar.valid_time(self.timedate)
                 mainrow = []
-                c1 = '/В {}:00-{}:00'.format(str(self.tzn + 6), str(self.tzn + 9))
-                c2 = '/В {}:00-{}:00'.format(str(self.tzn + 9), str(self.tzn + 14))
-                c3 = '/В {}:00-{}:00'.format(str(self.tzn + 14), str(self.tzn + 20))
+                c1 = '/В {}:00-{}:00'.format(str(self.tzn + 6) if self.tzn + 6 < 24 else '24',
+                                             str(self.tzn + 9) if self.tzn + 9 < 24 else '24')
+                c2 = '/В {}:00-{}:00'.format(str(self.tzn + 9) if self.tzn + 9 < 24 else '24',
+                                             str(self.tzn + 14) if self.tzn + 14 < 24 else '24')
+                c3 = '/В {}:00-{}:00'.format(str(self.tzn + 14) if self.tzn + 14 < 24 else '24',
+                                             str(self.tzn + 20) if self.tzn + 20 < 24 else '24')
                 for el in sp:
                     starttime = int(el[0].split(':')[0]) + int(int(el[0].split(':')[0]) // 60)
                     endtime = int(el[1].split(':')[0]) + int(int(el[1].split(':')[0]) // 60)
@@ -161,12 +165,17 @@ class Buttons:
                 mainrow = []
                 for el in sp:
                     if int(el[0].split(':')[0]) - el[2] + self.tzn in self.range:
-                        t1 = str('{}:{}'.format(str(int(el[0].split(':')[0]) - el[2] + self.tzn) if int(el[0].split(':')[0]) - el[2] + self.tzn > 9 else '0' + str(int(el[0].split(':')[0]) - el[2] + self.tzn),
-                                                str(int(el[0].split(':')[1]) - el[2] + self.tzn) if int(el[0].split(':')[1]) - el[2] + self.tzn > 9 else '0' + str(int(el[0].split(':')[1]) - el[2] + self.tzn)))
-                        t2 = str('{}:{}'.format(str(int(el[1].split(':')[0]) - el[2] + self.tzn) if int(el[1].split(':')[0]) - el[2] + self.tzn > 9 else '0' + str(int(el[1].split(':')[0]) - el[2] + self.tzn),
-                                                str(int(el[1].split(':')[1]) - el[2] + self.tzn) if int(el[1].split(':')[1]) - el[2] + self.tzn > 9 else '0' + str(int(el[1].split(':')[1]) - el[2] + self.tzn)))
-                        time = t1 + '-' + t2
-                        mainrow.append(time)
+                        t1 = str('{}:{}'.format(
+                            str(int(el[0].split(':')[0]) - el[2] + self.tzn) if int(el[0].split(':')[0]) - el[
+                                2] + self.tzn > 9 else '0' + str(int(el[0].split(':')[0]) - el[2] + self.tzn),
+                            str(int(el[0].split(':')[1])) if int(el[0].split(':')[1]) > 9 else '0' + str(int(el[0].split(':')[1]))))
+                        t2 = str('{}:{}'.format(
+                            str(int(el[1].split(':')[0]) - el[2] + self.tzn) if int(el[1].split(':')[0]) - el[
+                                2] + self.tzn > 9 else '0' + str(int(el[1].split(':')[0]) - el[2] + self.tzn),
+                            str(int(el[1].split(':')[1]))  if int(el[1].split(':')[1]) > 9 else '0' + str(int(el[1].split(':')[1]))))
+                        if int(t1.split(':')[0]) < 24 and int(t2.split(':')[0]) < 24:
+                            time = t1 + '-' + t2
+                            mainrow.append(time)
                 mainrow_res = []
                 gr = []
                 for el in mainrow:

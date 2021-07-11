@@ -61,8 +61,10 @@ class GoogleCalendar(object):
         }).execute()
 
     def sign_out(self, dtm_start, dtm_end):
-        dtm_start = 'T'.join(str(dtm_start).split()) + '+03:00'
-        dtm_end = 'T'.join(str(dtm_end).split()) + '+03:00'
+        dtm_start = 'T'.join(str(dtm_start).split()) + '+{}:00'.format(
+            str(self.tzn) if self.tzn > 9 else '0' + str(self.tzn))
+        dtm_end = 'T'.join(str(dtm_end).split()) + '+{}:00'.format(
+            str(self.tzn) if self.tzn > 9 else '0' + str(self.tzn))
         events_result = self.service.events().list(calendarId=calendarId,
                                                    timeMin=dtm_start,
                                                    maxResults=10, singleEvents=True,
@@ -101,14 +103,19 @@ class GoogleCalendar(object):
         return res
 
     def is_valid_day(self, dttm):
-        if datetime.datetime.now(tz=self.tz).date() != dttm.date():
-            now = dttm.date().isoformat() + 'T{}:00:00.000000Z'.format(
-                str(self.tzn + 6) if self.tzn > 9 else '0' + str(self.tzn + 6))
+        if dttm.date().strftime('%d.%m') == datetime.datetime.now(tz=self.tz).strftime('%d.%m'):
+            now = datetime.datetime.strptime(dttm.strftime('%Y-%m-%d %H:%M'), '%Y-%m-%d %H:%M').isoformat()
+            nowd = now.split('T')[0] + 'T{}:00:00.000000Z'.format(
+                str(self.tzn + 20) if self.tzn + 20 < 24 else '23')
+            now += 'Z'
         else:
-            now = (dttm).isoformat() + 'Z'
-        now = ''.join(now.split('+{}:00'.format(str(self.tzn) if self.tzn > 9 else '0' + str(self.tzn))))
+            nows = datetime.datetime.strptime(dttm.strftime('%Y-%m-%d'), '%Y-%m-%d').isoformat().split('T')[0]
+            now = nows + 'T{}:00:00.000000Z'.format(
+                str(self.tzn + 6) if self.tzn + 6 > 9 else '0' + str(self.tzn + 6))
+            nowd = nows + 'T{}:00:00.000000Z'.format(
+                str(self.tzn + 20) if self.tzn + 20 < 24 else '23')
         events_result = self.service.events().list(calendarId=calendarId,
-                                                   timeMin=now,
+                                                   timeMin=now, timeMax=nowd,
                                                    maxResults=20, singleEvents=True,
                                                    orderBy='startTime').execute()
         events = events_result.get('items', [])
@@ -123,8 +130,14 @@ class GoogleCalendar(object):
             now = datetime.datetime.now(tz=self.tz).isoformat() + 'Z'
             nowd = datetime.datetime.now(tz=self.tz).date().isoformat() + 'T23:59:59.999999Z'
         else:
+            dttm += datetime.timedelta(hours=self.tzn)
             now = (dttm).isoformat() + 'Z'
             nowd = (dttm + datetime.timedelta(hours=23, minutes=59, seconds=59)).isoformat() + 'Z'
+            nows = datetime.datetime.strptime(dttm.strftime('%Y-%m-%d'), '%Y-%m-%d').isoformat().split('T')[0]
+            now = nows + 'T{}:00:00.000000Z'.format(
+                str(self.tzn + 6) if self.tzn + 6 > 9 else '0' + str(self.tzn + 6))
+            nowd = nows + 'T{}:00:00.000000Z'.format(
+                str(self.tzn + 20) if self.tzn + 20 < 24 else '23')
         now = ''.join(now.split('+{}:00'.format(str(self.tzn) if self.tzn > 9 else '0' + str(self.tzn))))
         nowd = ''.join(nowd.split('+{}:00'.format(str(self.tzn) if self.tzn > 9 else '0' + str(self.tzn))))
         events_result = self.service.events().list(calendarId=calendarId,
@@ -137,7 +150,8 @@ class GoogleCalendar(object):
         for event in events:
             if event['summary'] == 'Свободно':
                 res.append([*map(lambda x: ':'.join(x.split('T')[1].split(':')[:2]),
-                                 [event['start']['dateTime'], event['end']['dateTime']]), int(event['start']['dateTime'].split('+')[1].split(':')[0])])
+                                 [event['start']['dateTime'], event['end']['dateTime']]),
+                            int(event['start']['dateTime'].split('+')[1].split(':')[0])])
         res = sorted(res, key=lambda x: int(x[0].split(':')[0]))
         return res
 
