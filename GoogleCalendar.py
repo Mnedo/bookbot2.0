@@ -111,7 +111,7 @@ class GoogleCalendar(object):
         else:
             nows = datetime.datetime.strptime(dttm.strftime('%Y-%m-%d'), '%Y-%m-%d').isoformat().split('T')[0]
             now = nows + 'T{}:00:00.000000Z'.format(
-                str(self.tzn + 6) if self.tzn + 6 > 9 else '0' + str(self.tzn + 6))
+                str(self.tzn + 3) if self.tzn + 3 > 9 else '0' + str(self.tzn + 3))
             nowd = nows + 'T{}:00:00.000000Z'.format(
                 str(self.tzn + 20) if self.tzn + 20 < 24 else '23')
         events_result = self.service.events().list(calendarId=calendarId,
