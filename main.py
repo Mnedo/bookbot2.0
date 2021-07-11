@@ -259,21 +259,25 @@ def data_clear(context):
 def start(update, context):
     global SUPERUSERS, calendar
     if 'Главное меню' not in update['message']['text'] and 'main_menu' not in update['message']['text']:
+        context.bot_data['tz'] = datetime.timezone(datetime.timedelta(hours=3))
+        context.bot_data['tzn'] = 3
         if 'user' not in context.chat_data.keys():
             context.chat_data['user'] = User(update['message']['chat']['id'], update.message.chat_id)
         if 'users' not in context.bot_data.keys():
             context.job_queue.run_monthly(data_clear, when=datetime.time(14), day=11, context=context)
             context.bot_data['users'] = {context.chat_data['user'].id: {
-                'reg_time': datetime.datetime.strptime(datetime.datetime.today().strftime('%H:%M %d.%m.%Y'),
-                                                       '%H:%M %d.%m.%Y'),
+                'reg_time': datetime.datetime.strptime(
+                    datetime.datetime.now(tz=context.bot_data['tz']).strftime('%H:%M %d.%m.%Y'),
+                    '%H:%M %d.%m.%Y'),
                 'events': [],
                 'phone': 0,
                 'info': get_info(update, context)}}
         else:
             if context.chat_data['user'].id not in context.bot_data['users'].keys():
                 context.bot_data['users'][context.chat_data['user'].id] = {
-                    'reg_time': datetime.datetime.strptime(datetime.datetime.today().strftime('%H:%M %d.%m.%Y'),
-                                                           '%H:%M %d.%m.%Y'),
+                    'reg_time': datetime.datetime.strptime(
+                        datetime.datetime.now(tz=context.bot_data['tz']).strftime('%H:%M %d.%m.%Y'),
+                        '%H:%M %d.%m.%Y'),
                     'events': [],
                     'phone': 0,
                     'info': get_info(update, context)}
@@ -285,9 +289,11 @@ def start(update, context):
             context.bot_data['info'] = {'description': 'Я очень известный кто-то приходите ко мне',
                                         'number': '80000000000', 'address': 'Москва, ул. Пушкина'}
         context.chat_data['keyboard'] = Buttons()
+        context.chat_data['keyboard'].set_calendar(calendar)
+        context.chat_data['keyboard'].set_tz(context.bot_data['tz'], context.bot_data['tzn'])
         if context.chat_data['user'].id in SUPERUSERS:
             context.chat_data['keyboard'].admin_panel()
-        context.chat_data['keyboard'].set_calendar(calendar)
+
         context.chat_data['sure'] = False
         context.chat_data['feedback'] = False
         context.chat_data['phone'] = False
@@ -341,10 +347,10 @@ def get_info(update, context):
             date = context.bot_data['users'][id]['reg_time'].strftime('%d.%m.%Y в %H:%M')
         else:
             phone = 0
-            date = datetime.datetime.today().strftime('%d.%m.%Y в %H:%M')
+            date = datetime.datetime.now(tz=context.bot_data['tz']).strftime('%d.%m.%Y в %H:%M')
     else:
         phone = 0
-        date = datetime.datetime.today().strftime('%d.%m.%Y в %H:%M')
+        date = datetime.datetime.now(tz=context.bot_data['tz']).strftime('%d.%m.%Y в %H:%M')
     txt = surname + ' ' + name + '\n'
     txt += 'user_id - ' + str(id) + (' - ' + nickname + '\n') if nickname else '\n'
     txt += ('phone: ' + str(phone) + '\n') if phone else 'phone number is not specified\n'
@@ -394,6 +400,7 @@ def registration(update, context):
 def appointment(update, context):
     context.chat_data['feedback'] = False
     context.chat_data['sure'] = False
+    context.chat_data['phone'] = False
     if 'Назад к неделе' not in update['message']['text']:
         text = 'Выберите день для записи, и я подскажу, что делать дальше.'
     else:
@@ -545,13 +552,18 @@ def book(update, context):
                                             context.chat_data['keyboard'].sure.split('-')[0], '%Y-%m-%d %H:%M'),
                  datetime.datetime.strptime(str(context.chat_data['keyboard'].timedate).split()[0] + ' ' +
                                             context.chat_data['keyboard'].sure.split('-')[1], '%Y-%m-%d %H:%M'),
-                 datetime.datetime.strptime(datetime.datetime.now().strftime('%H:%M %d.%m.%Y'), '%H:%M %d.%m.%Y')])
+                 datetime.datetime.strptime(datetime.datetime.now(tz=context.bot_data['tz']).strftime('%H:%M %d.%m.%Y'),
+                                            '%H:%M %d.%m.%Y')])
             context.bot_data['users'][context.chat_data['user'].id]['info'] = get_info(update, context)
             chat_id = update.message.chat_id
             tmd = []
             for el in context.bot_data['users'][context.chat_data['user'].id]['events']:
-                if datetime.datetime.today() - el[2] < datetime.timedelta(
-                        hours=1):
+                ddt = datetime.datetime.strptime(
+                    str(datetime.datetime.now(tz=context.bot_data['tz']).isoformat().split('+')[0].split('.')[0]),
+                    '%Y-%m-%dT%H:%M:%S')
+                elm = datetime.datetime.strptime(str(el[2].isoformat().split('+')[0].split('.')[0]),
+                                                 '%Y-%m-%dT%H:%M:%S')
+                if ddt - elm < datetime.timedelta(hours=1):
                     tmd.append(el[0])
             if len(tmd) > 2:
                 del context.bot_data['users'][context.chat_data['user'].id]['events'][-1]
@@ -563,7 +575,7 @@ def book(update, context):
             else:
                 due = int((datetime.datetime.strptime((str(context.chat_data['keyboard'].timedate).split()[0] + ' ' + \
                                                        context.chat_data['keyboard'].sure.split('-')[0] + ':00'),
-                                                      '%Y-%m-%d %H:%M:%S') - datetime.datetime.today() - datetime.timedelta(
+                                                      '%Y-%m-%d %H:%M:%S') - ddt - datetime.timedelta(
                     hours=1)).total_seconds())
                 context.job_queue.run_once(
                     task,
@@ -574,9 +586,11 @@ def book(update, context):
                                                    context.chat_data['keyboard'].sure.split('-')[0], '%Y-%m-%d %H:%M'))
                 )
                 time = str(context.chat_data['keyboard'].timedate).split()[0] + 'T' + \
-                       context.chat_data['keyboard'].sure.split('-')[0] + ':00+03:00'
+                       context.chat_data['keyboard'].sure.split('-')[0] + ':00+{}:00'.format(
+                    str(context.bot_data['tzn']) if context.bot_data['tzn'] > 9 else '0' + str(context.bot_data['tzn']))
                 timeend = str(context.chat_data['keyboard'].timedate).split()[0] + 'T' + \
-                          context.chat_data['keyboard'].sure.split('-')[1] + ':00+03:00'
+                          context.chat_data['keyboard'].sure.split('-')[1] + ':00+{}:00'.format(
+                    str(context.bot_data['tzn']) if context.bot_data['tzn'] > 9 else '0' + str(context.bot_data['tzn']))
                 calendar.update_event(time, timeend, '\n'.join(get_info(update, context).split('\n')[:5]))
                 reply_keyboard = [['/Главное меню']]
                 markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=80)

@@ -15,6 +15,12 @@ class GoogleCalendar(object):
     def __init__(self):
         credentials = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
         self.service = googleapiclient.discovery.build('calendar', 'v3', credentials=credentials)
+        self.tz = datetime.timezone(datetime.timedelta(hours=3))
+        self.tzn = 3
+
+    def set_tz(self, tz, tzn):
+        self.tz = tz
+        self.tzn = tzn
 
     # создание словаря с информацией о событии
     def create_event(self, starttime, endtime):
@@ -95,14 +101,14 @@ class GoogleCalendar(object):
         return res
 
     def is_valid_day(self, dttm):
-        if datetime.datetime.today().date() != dttm.date():
-            now = dttm.date().isoformat() + 'T00:00:00.000000Z'
-            nowd = dttm.date().isoformat() + 'T23:59:59.999999Z'
+        if datetime.datetime.now(tz=self.tz).date() != dttm.date():
+            now = dttm.date().isoformat() + 'T{}:00:00.000000Z'.format(
+                str(self.tzn + 6) if self.tzn > 9 else '0' + str(self.tzn + 6))
         else:
             now = (dttm).isoformat() + 'Z'
-            nowd = dttm.date().isoformat() + 'T23:59:59.999999Z'
+        now = ''.join(now.split('+{}:00'.format(str(self.tzn) if self.tzn > 9 else '0' + str(self.tzn))))
         events_result = self.service.events().list(calendarId=calendarId,
-                                                   timeMin=now, timeMax=nowd,
+                                                   timeMin=now,
                                                    maxResults=20, singleEvents=True,
                                                    orderBy='startTime').execute()
         events = events_result.get('items', [])
@@ -113,13 +119,14 @@ class GoogleCalendar(object):
             return False
 
     def valid_time(self, dttm):
-        if dttm.date() == datetime.datetime.now().date():
-            now = datetime.datetime.now().isoformat() + 'Z'
-            nowd = datetime.datetime.today().date().isoformat() + 'T23:59:59.999999Z'
+        if dttm.date() == datetime.datetime.now(tz=self.tz).date():
+            now = datetime.datetime.now(tz=self.tz).isoformat() + 'Z'
+            nowd = datetime.datetime.now(tz=self.tz).date().isoformat() + 'T23:59:59.999999Z'
         else:
             now = (dttm).isoformat() + 'Z'
-            hh = 24
-            nowd = (dttm + datetime.timedelta(hours=hh)).isoformat() + 'Z'
+            nowd = (dttm + datetime.timedelta(hours=23, minutes=59, seconds=59)).isoformat() + 'Z'
+        now = ''.join(now.split('+{}:00'.format(str(self.tzn) if self.tzn > 9 else '0' + str(self.tzn))))
+        nowd = ''.join(nowd.split('+{}:00'.format(str(self.tzn) if self.tzn > 9 else '0' + str(self.tzn))))
         events_result = self.service.events().list(calendarId=calendarId,
                                                    timeMin=now,
                                                    timeMax=nowd,
@@ -130,7 +137,7 @@ class GoogleCalendar(object):
         for event in events:
             if event['summary'] == 'Свободно':
                 res.append([*map(lambda x: ':'.join(x.split('T')[1].split(':')[:2]),
-                                 [event['start']['dateTime'], event['end']['dateTime']])])
+                                 [event['start']['dateTime'], event['end']['dateTime']]), int(event['start']['dateTime'].split('+')[1].split(':')[0])])
         res = sorted(res, key=lambda x: int(x[0].split(':')[0]))
         return res
 

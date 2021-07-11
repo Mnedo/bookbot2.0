@@ -10,6 +10,8 @@ class Buttons:
         self.range = ''
         self.nextlevel = 0
         self.ctx = ''
+        self.tz = datetime.timezone(datetime.timedelta(hours=3))
+        self.tzn = 3
         self.admin = False
 
     def admin_panel(self):
@@ -28,17 +30,19 @@ class Buttons:
     def set_sure(self, mes):
         self.sure = mes
 
+    def set_tz(self, tz, tzn):
+        self.tz = tz
+        self.tzn = tzn
+        self.calendar.set_tz(tz, tzn)
+
     def set_time(self, dttm):
         ff = True
-        hh = int((datetime.datetime.today()).strftime('%H'))
-        mm = int((datetime.datetime.today()).strftime('%M'))
-        now = datetime.datetime.today() - datetime.timedelta(days=1, hours=hh, minutes=mm)
+        day = datetime.datetime.now(tz=self.tz) - datetime.timedelta(days=1)
         while ff:
-            now += datetime.timedelta(days=1)
-            if now.strftime('%d.%m') == dttm:
+            day += datetime.timedelta(days=1)
+            if day.strftime('%d.%m') == dttm:
                 ff = False
-                self.timedate = now
-                self.timeutc = now + datetime.timedelta(hours=3)
+                self.timedate = datetime.datetime.strptime(day.strftime('%d.%m.%Y'), '%d.%m.%Y')
 
     def set_range(self, rng):
         self.range = range(int(rng[0].split(':')[0]), int(rng[1].split(':')[0]) + 1)
@@ -109,18 +113,16 @@ class Buttons:
             self.nextlevel = 0
             if command == 'appointment':
                 # %w - номер дня недели
-                var = datetime.datetime.today() - datetime.timedelta(days=1)
-                self.vt = datetime.datetime.today()
+                day = datetime.datetime.now(tz=self.tz) - datetime.timedelta(days=1)
                 mainrow = []
                 while len(mainrow) <= 2:
-                    var += datetime.timedelta(days=1)
-                    if self.is_valid_day(var):
-                        if var.strftime('%d.%m') == (datetime.datetime.today()).strftime(
-                                '%d.%m'):
-                            varc = '/Сегодня ' + var.strftime('%d.%m')
+                    day += datetime.timedelta(days=1)
+                    if self.is_valid_day(day):
+                        if day.strftime('%d.%m.%Y') == (datetime.datetime.now(tz=self.tz)).strftime('%d.%m.%Y'):
+                            btn = '/Сегодня ' + day.strftime('%d.%m')
                         else:
-                            varc = '/' + self.rusific(var.strftime('%w')) + ' ' + var.strftime('%d.%m')
-                        mainrow.append(varc)
+                            btn = '/' + self.rusific(day.strftime('%w')) + ' ' + day.strftime('%d.%m')
+                        mainrow.append(btn)
                 skip = ['/Следующая', '/Главное меню']
                 self.keyboard.append(mainrow)
                 self.keyboard.append(skip)
@@ -135,18 +137,20 @@ class Buttons:
             elif command == 'registration':
                 sp = self.calendar.valid_time(self.timedate)
                 mainrow = []
-                c1 = '/В 9:00-12:00'
-                c2 = '/В 12:00-17:00'
-                c3 = '/В 17:00-23:00'
+                c1 = '/В {}:00-{}:00'.format(str(self.tzn + 6), str(self.tzn + 9))
+                c2 = '/В {}:00-{}:00'.format(str(self.tzn + 9), str(self.tzn + 14))
+                c3 = '/В {}:00-{}:00'.format(str(self.tzn + 14), str(self.tzn + 20))
                 for el in sp:
-                    kk = int(el[0].split(':')[0])
-                    if kk in range(9, 12):
+                    starttime = int(el[0].split(':')[0]) + int(int(el[0].split(':')[0]) // 60)
+                    endtime = int(el[1].split(':')[0]) + int(int(el[1].split(':')[0]) // 60)
+                    tz = el[2]
+                    if starttime - tz + self.tzn in range(6 + self.tzn, 9 + self.tzn):
                         if c1 not in mainrow:
                             mainrow.append(c1)
-                    if kk in range(12, 17):
+                    if starttime - tz + self.tzn in range(self.tzn + 9, self.tzn + 14):
                         if c2 not in mainrow:
                             mainrow.append(c2)
-                    if kk in range(17, 23):
+                    if starttime - tz + self.tzn in range(self.tzn + 14, self.tzn + 20):
                         if c3 not in mainrow:
                             mainrow.append(c3)
                 skip = ['/Назад к неделе']
@@ -156,8 +160,13 @@ class Buttons:
                 sp = self.calendar.valid_time(self.timedate)
                 mainrow = []
                 for el in sp:
-                    if int(el[0].split(':')[0]) in self.range:
-                        mainrow.append('-'.join(el))
+                    if int(el[0].split(':')[0]) - el[2] + self.tzn in self.range:
+                        t1 = str('{}:{}'.format(str(int(el[0].split(':')[0]) - el[2] + self.tzn) if int(el[0].split(':')[0]) - el[2] + self.tzn > 9 else '0' + str(int(el[0].split(':')[0]) - el[2] + self.tzn),
+                                                str(int(el[0].split(':')[1]) - el[2] + self.tzn) if int(el[0].split(':')[1]) - el[2] + self.tzn > 9 else '0' + str(int(el[0].split(':')[1]) - el[2] + self.tzn)))
+                        t2 = str('{}:{}'.format(str(int(el[1].split(':')[0]) - el[2] + self.tzn) if int(el[1].split(':')[0]) - el[2] + self.tzn > 9 else '0' + str(int(el[1].split(':')[0]) - el[2] + self.tzn),
+                                                str(int(el[1].split(':')[1]) - el[2] + self.tzn) if int(el[1].split(':')[1]) - el[2] + self.tzn > 9 else '0' + str(int(el[1].split(':')[1]) - el[2] + self.tzn)))
+                        time = t1 + '-' + t2
+                        mainrow.append(time)
                 mainrow_res = []
                 gr = []
                 for el in mainrow:
@@ -171,7 +180,6 @@ class Buttons:
                     self.keyboard.append(el)
                 now = self.timedate.strftime('%d.%m')
                 skip = ['/Назад к расписанию ' + now]
-                # self.keyboard.append(mainrow)
                 self.keyboard.append(skip)
             elif 'sure' == command:
                 self.keyboard.append(['Да', 'Нет'])
