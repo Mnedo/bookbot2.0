@@ -64,7 +64,7 @@ class Buttons:
                 self.keyboard.append(['/admin', '/user_info', '/main_menu'])
                 self.keyboard.append(['/add_superuser', '/del_superuser'])
                 self.keyboard.append(['/set_contact_number', '/set_address'])
-                self.keyboard.append(['/set_description', '/send_feedbacks'])
+                self.keyboard.append(['/set_description', '/get_feedbacks'])
         else:
             self.keyboard.append(['/Главное меню'])
 
@@ -114,7 +114,6 @@ class Buttons:
                 mainrow = []
                 while len(mainrow) <= 2:
                     var += datetime.timedelta(days=1)
-                    varc = ''
                     if self.is_valid_day(var):
                         if var.strftime('%d.%m') == datetime.datetime.today().strftime('%d.%m'):
                             varc = '/Сегодня ' + var.strftime('%d.%m')
@@ -126,9 +125,12 @@ class Buttons:
                 self.keyboard.append(skip)
             elif command == 'start':
                 self.keyboard.append(['/Записаться', '/Отменить запись', '/Контакты'])
-                self.keyboard.append(['/Оставить отзыв', '/Помощь'])
+                self.keyboard.append(['/Личный кабинет', '/Помощь'])
                 if self.is_admin():
                     self.keyboard.append(['/admin_panel'])
+            elif command == 'account':
+                self.keyboard.append(['/Статус', '/Оставить отзыв'])
+                self.keyboard.append(['/Сменить телефон', '/Главное меню'])
             elif command == 'registration':
                 sp = self.calendar.valid_time(self.timedate)
                 mainrow = []
@@ -173,13 +175,12 @@ class Buttons:
             elif 'sure' == command:
                 self.keyboard.append(['Да', 'Нет'])
             elif 'sign_out' == command:
-                if self.ctx:
+                if self.ctx['events']:
                     text = 'Выберите вариант, который хотите отменить.'
-                    for el in self.ctx:
-                        self.keyboard.append(['/Запись ' + str(el[1]).split()[0] + ' в ' +
-                                              ':'.join(str(el[1]).split()[1].split(':')[:2]) + ' - ' + ':'.join(
-                            str(el[2]).split()[1].split(':')[
-                            :2])])
+                    for el in self.ctx['events']:
+                        if el[0] > datetime.datetime.today():
+                            self.keyboard.append(['/Запись ' + el[0].strftime('%d.%m.%Y') + ' в ' +
+                                                  el[0].strftime('%H:%M') + ' - ' + el[1].strftime('%H:%M')])
                 else:
                     text = 'Кажется, Вы ещё не записаны. /appointment - запишитесь!'
                 self.keyboard.append(['/Записаться', '/Главное меню'])
