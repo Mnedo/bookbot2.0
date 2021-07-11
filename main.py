@@ -339,8 +339,12 @@ def get_info(update, context):
         if context.chat_data['user'].id in context.bot_data['users'].keys():
             phone = context.bot_data['users'][id]['phone']
             date = context.bot_data['users'][id]['reg_time'].strftime('%d.%m.%Y в %H:%M')
+        else:
+            phone = 0
+            date = datetime.datetime.today().strftime('%d.%m.%Y в %H:%M')
     else:
         phone = 0
+        date = datetime.datetime.today().strftime('%d.%m.%Y в %H:%M')
     txt = surname + ' ' + name + '\n'
     txt += 'user_id - ' + str(id) + (' - ' + nickname + '\n') if nickname else '\n'
     txt += ('phone: ' + str(phone) + '\n') if phone else 'phone number is not specified\n'
