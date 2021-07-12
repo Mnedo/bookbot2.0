@@ -1,6 +1,14 @@
 import datetime
 
 
+class AccessError(Exception):
+    def __init__(self, *args):
+        if args:
+            args[0].bot.send_message(
+                text='Кажется, Вы в черном листе и не можете совершать какие-либо действия, если это ошибка, свяжитесь с нами.',
+                chat_id=args[1])
+
+
 class Buttons:
     def __init__(self):
         self.keyboard = []
@@ -66,9 +74,10 @@ class Buttons:
         if self.is_admin():
             if command == 'start':
                 self.keyboard.append(['/admin', '/user_info', '/main_menu'])
-                self.keyboard.append(['/add_superuser', '/del_superuser'])
-                self.keyboard.append(['/set_contact_number', '/set_address'])
+                self.keyboard.append(['/ban_user', '/disban_user'])
                 self.keyboard.append(['/set_description', '/set_timezone'])
+                self.keyboard.append(['/set_contact_number', '/set_address'])
+                self.keyboard.append(['/data_clear'])
                 self.keyboard.append(['/get_feedbacks'])
         else:
             self.keyboard.append(['/Главное меню'])
@@ -168,11 +177,13 @@ class Buttons:
                         t1 = str('{}:{}'.format(
                             str(int(el[0].split(':')[0]) - el[2] + self.tzn) if int(el[0].split(':')[0]) - el[
                                 2] + self.tzn > 9 else '0' + str(int(el[0].split(':')[0]) - el[2] + self.tzn),
-                            str(int(el[0].split(':')[1])) if int(el[0].split(':')[1]) > 9 else '0' + str(int(el[0].split(':')[1]))))
+                            str(int(el[0].split(':')[1])) if int(el[0].split(':')[1]) > 9 else '0' + str(
+                                int(el[0].split(':')[1]))))
                         t2 = str('{}:{}'.format(
                             str(int(el[1].split(':')[0]) - el[2] + self.tzn) if int(el[1].split(':')[0]) - el[
                                 2] + self.tzn > 9 else '0' + str(int(el[1].split(':')[0]) - el[2] + self.tzn),
-                            str(int(el[1].split(':')[1]))  if int(el[1].split(':')[1]) > 9 else '0' + str(int(el[1].split(':')[1]))))
+                            str(int(el[1].split(':')[1])) if int(el[1].split(':')[1]) > 9 else '0' + str(
+                                int(el[1].split(':')[1]))))
                         if int(t1.split(':')[0]) < 24 and int(t2.split(':')[0]) < 24:
                             time = t1 + '-' + t2
                             mainrow.append(time)
@@ -199,6 +210,8 @@ class Buttons:
                         if el[0] > datetime.datetime.today():
                             self.keyboard.append(['/Запись ' + el[0].strftime('%d.%m.%Y') + ' в ' +
                                                   el[0].strftime('%H:%M') + ' - ' + el[1].strftime('%H:%M')])
+                    if not self.keyboard:
+                        text = 'Кажется, Вы ещё не записаны. /appointment - запишитесь!'
                 else:
                     text = 'Кажется, Вы ещё не записаны. /appointment - запишитесь!'
                 self.keyboard.append(['/Записаться', '/Главное меню'])

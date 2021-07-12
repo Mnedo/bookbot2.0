@@ -14,7 +14,7 @@ class EditCommandHandler:
         """
         self.commands = []
         self.func = False
-        self.func_hnd = ''
+        self.func_hnd = lambda x, y: x
 
     def extra_handler(self, func):
         self.func = True
@@ -25,6 +25,7 @@ class EditCommandHandler:
         :param command_name: имя команды для регистрирования
         :param func_handler: функция обработчик
         :param command_smb: знак для активации команды (по умолчанию /)
+        :param have_args: наличие аргументов
         :return: none
         """
         if command_smb not in '/!?#':
@@ -94,5 +95,5 @@ class EditCommandHandler:
         except Exception as error:
             print(error)
             args[1].bot.send_message(
-                text='Произошла ошибка, попробуйте ещё раз. Если ошибка повторится, введите /start .',
+                text='Произошла ошибка, попробуйте ещё раз. Если ошибка повторится, введите /start',
                 chat_id=args[0].message.chat_id)

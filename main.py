@@ -1,14 +1,13 @@
-import json
-import requests
-import random
-from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
-from telegram.ext import CommandHandler, Updater, ConversationHandler, MessageHandler, Filters
+import telegram
+from telegram import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
+from telegram.ext import CommandHandler, Updater, MessageHandler, Filters
 import datetime
 
 from EditedClasses import EditCommandHandler
-from lib import Buttons
+from lib import Buttons, AccessError
 from GoogleCalendar import GoogleCalendar
 
+TOKEN = "1765029934:AAG3PWNX_bBlUtllnaK6ZWKH9fMaEp8fKrs"
 REQUEST_KWARGS = {
     'urllib3_proxy_kwargs': {
         'assert_hostname': 'False',
@@ -16,7 +15,7 @@ REQUEST_KWARGS = {
         'username': 'user',
         'password': 'password'}
 }
-updater = Updater("1765029934:AAG3PWNX_bBlUtllnaK6ZWKH9fMaEp8fKrs", use_context=True,
+updater = Updater(TOKEN, use_context=True,
                   request_kwargs=REQUEST_KWARGS)
 
 
@@ -28,6 +27,8 @@ class User:
 
 calendar = GoogleCalendar()
 SUPERUSERS = [921615186]
+BANNEDUSERS = []
+
 
 
 def admin(update, context):
@@ -36,41 +37,54 @@ def admin(update, context):
         context.chat_data['keyboard'].reset()
         context.chat_data['keyboard'].create_admin('start')
         reply_keyboard = context.chat_data['keyboard'].keyboard
-        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=80)
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=True)
         context.bot.send_message(
             text='Добро пожаловать в админскую панель! Выберите действие, которое хотите сделать или введите /admin для ознакомления.',
             chat_id=update.message.chat_id,
             reply_markup=markup)
     except Exception:
         context.bot.send_message(
-            text='Произошла ошибка, попробуйте ещё раз. Если ошибка повторится, введите /start .',
+            text='Произошла ошибка, попробуйте ещё раз. Если ошибка повторится, введите /start ',
             chat_id=update.message.chat_id)
 
 
 def admin_info(update, context):
-    txt = ''
-    txt += '/admin - команда, информирующая о возможностях бота\n'
-    txt += '/add_superuser - команда, которая расширяет список пользователей, имеюших доступ к админской панели\n' \
-           'примечание: /add_superuser <user_id>\nполучить id при помощи команды /info\n'
-    txt += '/del_superuser - команда удаляет пользователя из админской панели\n' \
-           'примечание: /del_superuser <user_id>\nполучить id при помощи команды /info\n'
-    txt += '/user_info - команда даёт информацию обо всех зарегестрированых пользователях\n' \
-           'примечание: /user_info <user_id>\n'
-    txt += '/get_feedbacks - команда показывает список отзывов об организации, которые оставили пользователи\n'
-    txt += '/get_contact_number - установка номера для личной связи с Вами\n' \
-           'примечание: /send_contact_number <number>\n'
-    txt += '/set_description - установка описания для раздела /contacts\n' \
-           'примечание: /set_description <description>\n'
-    txt += '/set_address - адресс организации для раздела /contacts\n' \
-           'примечание: /set_address <address>\n'
+    txt = """Руководство для администрирования:
+Используйте это меню для контроля и модерации системы, будьте аккуратны со своими решениями!
+    
+Доступные команды:
+    /admin - руководство для администрации(вы уже тут)
+    /user_info <user_ID> - данные об определённом пользователе
+    /user_info - информация обо всех пользователях
+    /main_menu - возвращение в главное меню пользователя
+    /ban_user <user_ID> - добавление пользователя в чёрный список, ограничение всех действий
+    /unban_user <user_ID> - удаление пользователя из чёрного списка
+    /set_description <text> - установка описания организации (раздел /contacts)
+    /set_timezone <hours> - смена часового пользователя, будьте аккуратно - экспериментальная функция
+        по умолчанию - UTC + 03:00
+    /set_contact_number <number> - установка номера организации (раздел /contacts)
+    /set_address <address> - установка адреса организации (раздел /contacts)
+    /data_clear - очистка базы данных от записей, которые прошли по времени
+        примечание:
+            Очищает пространство на сервере, но мешает собирать статистику, чистка будет производиться автоматически раз в месяц(в ручную вводить не обязательно)
+    /get_feedbacks - присылает все составленные отзывы с информацией о пользователе
+    
+Приятной модерации!
+    """
     try:
         if context.chat_data['keyboard'].is_admin():
             context.bot.send_message(
                 text=txt,
                 chat_id=update.message.chat_id)
+        else:
+            raise AccessError
+    except AccessError:
+        context.bot.send_message(
+            text='Ошибка доступа. У вас недостаточно привелегий.',
+            chat_id=update.message.chat_id)
     except Exception:
         context.bot.send_message(
-            text='Произошла ошибка, попробуйте ещё раз. Если ошибка повторится, введите /start .',
+            text='Произошла ошибка, попробуйте ещё раз. Если ошибка повторится, введите /start ',
             chat_id=update.message.chat_id)
 
 
@@ -121,9 +135,15 @@ def user_info(update, context):
             context.bot.send_message(
                 text=txt,
                 chat_id=update.message.chat_id)
+        else:
+            raise AccessError
+    except AccessError:
+        context.bot.send_message(
+            text='Ошибка доступа. У вас недостаточно привелегий.',
+            chat_id=update.message.chat_id)
     except Exception:
         context.bot.send_message(
-            text='Произошла ошибка, попробуйте ещё раз. Если ошибка повторится, введите /start .',
+            text='Произошла ошибка, попробуйте ещё раз. Если ошибка повторится, введите /start ',
             chat_id=update.message.chat_id)
 
 
@@ -139,13 +159,19 @@ def add_superuser(update, context):
             context.bot.send_message(
                 text='Поздравляем, Вы стали админом! Пропишите /start для добавления админской панели.',
                 chat_id=int(user_id))
+        else:
+            raise AccessError
+    except AccessError:
+        context.bot.send_message(
+            text='Ошибка доступа. У вас недостаточно привелегий.',
+            chat_id=update.message.chat_id)
     except (IndexError, ValueError):
         context.bot.send_message(
             text='Использование: /add_superuser <user_id>',
             chat_id=update.message.chat_id)
     except Exception:
         context.bot.send_message(
-            text='Произошла ошибка, попробуйте ещё раз. Если ошибка повторится, введите /start .',
+            text='Произошла ошибка, попробуйте ещё раз. Если ошибка повторится, введите /start ',
             chat_id=update.message.chat_id)
 
 
@@ -153,7 +179,7 @@ def del_superuser(update, context):
     global SUPERUSERS
     try:
         user_id = context.args[0]
-        if context.chat_data['keyboard'].is_admin():
+        if context.chat_data['keyboard'].is_admin() and int(user_id) != SUPERUSERS[0]:
             if int(user_id) in SUPERUSERS:
                 del SUPERUSERS[SUPERUSERS.index(int(user_id))]
                 txt = 'Суперпользователь успешно удалён'
@@ -162,13 +188,79 @@ def del_superuser(update, context):
             context.bot.send_message(
                 text=txt,
                 chat_id=update.message.chat_id)
+        else:
+            raise AccessError
+    except AccessError:
+        context.bot.send_message(
+            text='Ошибка доступа. У вас недостаточно привелегий.',
+            chat_id=update.message.chat_id)
     except (IndexError, ValueError):
         context.bot.send_message(
             text='Использование: /del_superuser <user_id>',
             chat_id=update.message.chat_id)
     except Exception:
         context.bot.send_message(
-            text='Произошла ошибка, попробуйте ещё раз. Если ошибка повторится, введите /start .',
+            text='Произошла ошибка, попробуйте ещё раз. Если ошибка повторится, введите /start ',
+            chat_id=update.message.chat_id)
+
+
+def ban_user(update, context):
+    global SUPERUSERS, BANNEDUSERS
+    try:
+        user_id = context.args[0]
+        if context.chat_data['keyboard'].is_admin() and int(user_id) != SUPERUSERS[0]:
+            BANNEDUSERS.append(int(user_id))
+            context.bot.send_message(
+                text='Пользователь добавлен в чёрный список',
+                chat_id=update.message.chat_id)
+            context.bot.send_message(
+                text='Поздравляем с добавлением в чёрный список! Пропишите /start для перезапуска.',
+                chat_id=int(user_id))
+        else:
+            raise AccessError
+    except AccessError:
+        context.bot.send_message(
+            text='Ошибка доступа. У вас недостаточно привелегий.',
+            chat_id=update.message.chat_id)
+    except (IndexError, ValueError):
+        context.bot.send_message(
+            text='Использование: /ban_user <user_id>',
+            chat_id=update.message.chat_id)
+    except Exception:
+        context.bot.send_message(
+            text='Произошла ошибка, попробуйте ещё раз. Если ошибка повторится, введите /start ',
+            chat_id=update.message.chat_id)
+
+
+def unban_user(update, context):
+    global SUPERUSERS, BANNEDUSERS
+    try:
+        user_id = context.args[0]
+        if context.chat_data['keyboard'].is_admin():
+            if int(user_id) in BANNEDUSERS:
+                del BANNEDUSERS[BANNEDUSERS.index(int(user_id))]
+                txt = 'Пользователь успешно удалён из чёрного списка'
+            else:
+                txt = 'Такого пользователя не существует, проверьте id'
+            context.bot.send_message(
+                text=txt,
+                chat_id=update.message.chat_id)
+            context.bot.send_message(
+                text='С возвращением, пропишите /start для перезапуска.',
+                chat_id=int(user_id))
+        else:
+            raise AccessError
+    except AccessError:
+        context.bot.send_message(
+            text='Ошибка доступа. У вас недостаточно привелегий.',
+            chat_id=update.message.chat_id)
+    except (IndexError, ValueError):
+        context.bot.send_message(
+            text='Использование: /unban_user <user_id>',
+            chat_id=update.message.chat_id)
+    except Exception:
+        context.bot.send_message(
+            text='Произошла ошибка, попробуйте ещё раз. Если ошибка повторится, введите /start ',
             chat_id=update.message.chat_id)
 
 
@@ -193,13 +285,19 @@ def set_timezone(update, context):
             context.bot.send_message(
                 text='Часовой пояс был успешно изменён. База данных обновлена. UTC+{}:00'.format(timezone),
                 chat_id=update.message.chat_id)
+        else:
+            raise AccessError
+    except AccessError:
+        context.bot.send_message(
+            text='Ошибка доступа. У вас недостаточно привелегий.',
+            chat_id=update.message.chat_id)
     except (IndexError, ValueError):
         context.bot.send_message(
             text='Использование: /set_timezone <int: hours + UTC>\n default: UTC+03:00 MSK+00:00',
             chat_id=update.message.chat_id)
     except Exception:
         context.bot.send_message(
-            text='Произошла ошибка, попробуйте ещё раз. Если ошибка повторится, введите /start .',
+            text='Произошла ошибка, попробуйте ещё раз. Если ошибка повторится, введите /start ',
             chat_id=update.message.chat_id)
 
 
@@ -215,48 +313,89 @@ def send_feedbacks(update, context):
             else:
                 text = 'Отзывы отсутствуют'
             context.bot.send_message(text=text, chat_id=update.message.chat_id)
+        else:
+            raise AccessError
+    except AccessError:
+        context.bot.send_message(
+            text='Ошибка доступа. У вас недостаточно привелегий.',
+            chat_id=update.message.chat_id)
     except Exception:
         context.bot.send_message(
-            text='Произошла ошибка, попробуйте ещё раз. Если ошибка повторится, введите /start .',
+            text='Произошла ошибка, попробуйте ещё раз. Если ошибка повторится, введите /start ',
             chat_id=update.message.chat_id)
 
 
 def set_description(update, context):
     try:
         if context.chat_data['keyboard'].is_admin():
-            mes = ' '.join(update.message.text.split()[1:])
+            mes = context.args[0]
             text = 'Описание успешно обновлено.'
             context.bot_data['info']['description'] = mes
             context.bot.send_message(text=text, chat_id=update.message.chat_id)
+        else:
+            raise AccessError
+    except AccessError:
+        context.bot.send_message(
+            text='Ошибка доступа. У вас недостаточно привелегий.',
+            chat_id=update.message.chat_id)
+    except (IndexError, ValueError):
+        context.bot.send_message(
+            text='Использование: /set_description <description>',
+            chat_id=update.message.chat_id)
     except Exception:
         context.bot.send_message(
-            text='Произошла ошибка, попробуйте ещё раз. Если ошибка повторится, введите /start .',
+            text='Произошла ошибка, попробуйте ещё раз. Если ошибка повторится, введите /start ',
             chat_id=update.message.chat_id)
 
 
 def set_number(update, context):
     try:
         if context.chat_data['keyboard'].is_admin():
-            mes = ' '.join(update.message.text.split()[1:])
-            context.bot_data['info']['number'] = mes
-            text = 'Телефон успешно обновлён.'
-            context.bot.send_message(text=text, chat_id=update.message.chat_id)
+            mes = context.args[0]
+            if correct_mobile(mes):
+                context.bot_data['info']['number'] = mes
+                text = 'Телефон успешно обновлён.'
+                context.bot.send_message(text=text, chat_id=update.message.chat_id)
+            else:
+                context.bot.send_message(
+                    text='Телефон не соответствует требованиям.',
+                    chat_id=update.message.chat_id)
+        else:
+            raise AccessError
+    except AccessError:
+        context.bot.send_message(
+            text='Ошибка доступа. У вас недостаточно привелегий.',
+            chat_id=update.message.chat_id)
+    except (IndexError, ValueError):
+        context.bot.send_message(
+            text='Использование: /set_contact_number <number>',
+            chat_id=update.message.chat_id)
     except Exception:
         context.bot.send_message(
-            text='Произошла ошибка, попробуйте ещё раз. Если ошибка повторится, введите /start .',
+            text='Произошла ошибка, попробуйте ещё раз. Если ошибка повторится, введите /start ',
             chat_id=update.message.chat_id)
 
 
 def set_address(update, context):
     try:
         if context.chat_data['keyboard'].is_admin():
-            mes = ' '.join(update.message.text.split()[1:])
+            mes = context.args[0]
             context.bot_data['info']['address'] = mes
             text = 'Адрес успешно обновлён.'
             context.bot.send_message(text=text, chat_id=update.message.chat_id)
+        else:
+            raise AccessError
+    except AccessError:
+        context.bot.send_message(
+            text='Ошибка доступа. У вас недостаточно привелегий.',
+            chat_id=update.message.chat_id)
+    except (IndexError, ValueError):
+        context.bot.send_message(
+            text='Использование: /set_address <address>',
+            chat_id=update.message.chat_id)
     except Exception:
         context.bot.send_message(
-            text='Произошла ошибка, попробуйте ещё раз. Если ошибка повторится, введите /start .',
+            text='Произошла ошибка, попробуйте ещё раз. Если ошибка повторится, введите /start ',
             chat_id=update.message.chat_id)
 
 
@@ -265,16 +404,20 @@ def change_phone(update, context):
     context.chat_data['change_phone'] = True
     context.chat_data['keyboard'].reset()
     context.chat_data['keyboard'].create('sure')
-    reply_keyboard = context.chat_data['keyboard'].keyboard
-    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=80)
-    context.bot.send_message(
-        text='Уверены, что хотите сменить телефон?',
-        chat_id=update.message.chat_id,
-        reply_markup=markup)
+    markup = ReplyKeyboardMarkup(keyboard=[[KeyboardButton('/Ввести в ручную')], [
+        KeyboardButton('/Отправить свой контакт\n(рекомендуем)',
+                       request_contact=True)]],
+                                 one_time_keyboard=False, resize_keyboard=True)
+    context.bot.send_message(text='Выберите вариант ввода телефона.',
+                             chat_id=update.message.chat_id, reply_markup=markup)
 
 
-def data_clear(context):
-    print('data_clear:')
+def data_clear(context, update=''):
+    if update:
+        variable = context
+        context = update
+        update = variable
+    txt = 'data_clear:\n'
     counter = 0
     valid = 0
     for id in context.bot_data['users'].keys():
@@ -283,76 +426,91 @@ def data_clear(context):
             if event[0] < datetime.datetime.today():
                 counter += 1
                 del context.bot_data['users'][id]['events'][context.bot_data['users'][id]['events'].index(event)]
-    print('{} posts has deleted.'.format(counter))
-    print('{} posts has checked.'.format(valid))
+    txt += '{} posts has deleted.\n'.format(counter)
+    txt += '{} posts has checked.\n'.format(valid)
+    if update:
+        context.bot.send_message(text=txt, chat_id=update.message.chat_id)
+    else:
+        print(txt)
 
 
 def start(update, context):
-    global SUPERUSERS, calendar
-    if 'Главное меню' not in update['message']['text'] and 'main_menu' not in update['message']['text']:
-        context.bot_data['tz'] = datetime.timezone(datetime.timedelta(hours=3))
-        context.bot_data['tzn'] = 3
-        if 'user' not in context.chat_data.keys():
-            context.chat_data['user'] = User(update['message']['chat']['id'], update.message.chat_id)
-        if 'users' not in context.bot_data.keys():
-            context.job_queue.run_monthly(data_clear, when=datetime.time(5), day=1, context=context)
-            context.bot_data['users'] = {context.chat_data['user'].id: {
-                'reg_time': datetime.datetime.strptime(
-                    datetime.datetime.now(tz=context.bot_data['tz']).strftime('%H:%M %d.%m.%Y'),
-                    '%H:%M %d.%m.%Y'),
-                'events': [],
-                'phone': 0,
-                'info': get_info(update, context)}}
-        else:
-            if context.chat_data['user'].id not in context.bot_data['users'].keys():
-                context.bot_data['users'][context.chat_data['user'].id] = {
+    global SUPERUSERS, calendar, BANNEDUSERS
+
+    try:
+        if 'Главное меню' not in update['message']['text'] and 'main_menu' not in update['message']['text']:
+            if 'user' not in context.chat_data.keys():
+                context.chat_data['user'] = User(update['message']['chat']['id'], update.message.chat_id)
+            if context.chat_data['user'].id in BANNEDUSERS:
+                raise AccessError(context, update.message.chat_id)
+            if 'users' not in context.bot_data.keys():
+                context.bot_data['tz'] = datetime.timezone(datetime.timedelta(hours=3))
+                context.bot_data['tzn'] = 3
+                context.job_queue.run_monthly(data_clear, when=datetime.time(5), day=15, context=context)
+                context.bot_data['users'] = {context.chat_data['user'].id: {
                     'reg_time': datetime.datetime.strptime(
                         datetime.datetime.now(tz=context.bot_data['tz']).strftime('%H:%M %d.%m.%Y'),
                         '%H:%M %d.%m.%Y'),
                     'events': [],
                     'phone': 0,
-                    'info': get_info(update, context)}
+                    'info': get_info(update, context)}}
             else:
-                context.bot_data['users'][context.chat_data['user'].id]['info'] = get_info(update, context)
-        if 'feedbacks' not in context.bot_data.keys():
-            context.bot_data['feedbacks'] = {}
-        if 'info' not in context.bot_data.keys():
-            context.bot_data['info'] = {'description': 'Я очень известный кто-то приходите ко мне',
-                                        'number': '80000000000', 'address': 'Москва, ул. Пушкина'}
-        context.chat_data['keyboard'] = Buttons()
-        context.chat_data['keyboard'].set_calendar(calendar)
-        context.chat_data['keyboard'].set_tz(context.bot_data['tz'], context.bot_data['tzn'])
-        if context.chat_data['user'].id in SUPERUSERS:
-            context.chat_data['keyboard'].admin_panel()
+                if context.chat_data['user'].id not in context.bot_data['users'].keys():
+                    context.bot_data['users'][context.chat_data['user'].id] = {
+                        'reg_time': datetime.datetime.strptime(
+                            datetime.datetime.now(tz=context.bot_data['tz']).strftime('%H:%M %d.%m.%Y'),
+                            '%H:%M %d.%m.%Y'),
+                        'events': [],
+                        'phone': 0,
+                        'info': get_info(update, context)}
+                else:
+                    context.bot_data['users'][context.chat_data['user'].id]['info'] = get_info(update, context)
+            if 'feedbacks' not in context.bot_data.keys():
+                context.bot_data['feedbacks'] = {}
+            if 'info' not in context.bot_data.keys():
+                context.bot_data['info'] = {'description': 'Я очень известный кто-то приходите ко мне',
+                                            'number': '80000000000', 'address': 'Москва, ул. Пушкина'}
+            context.chat_data['keyboard'] = Buttons()
+            context.chat_data['keyboard'].set_calendar(calendar)
+            context.chat_data['keyboard'].set_tz(context.bot_data['tz'], context.bot_data['tzn'])
+            if context.chat_data['user'].id in SUPERUSERS:
+                context.chat_data['keyboard'].admin_panel()
 
-        context.chat_data['sure'] = False
-        context.chat_data['feedback'] = False
-        context.chat_data['phone'] = False
-        context.chat_data['after_phone'] = False
-        context.chat_data['cancel'] = False
-        text = 'Привет! Это бот, который поможет Вам записаться на приём к мастеру.\n' \
-               'Выберите действие, и я Вам помогу!\n\n' \
-               'Обращайтесь к подсказкам на клавиатуре, они Вам помогут. '
-    else:
-        text = 'Что-то ещё? Выберите подсказку /Контакты, чтобы узнать о нас больше!'
-        context.chat_data['feedback'] = False
-        context.chat_data['phone'] = False
-        context.chat_data['cancel'] = False
-        context.chat_data['change_phone'] = False
-    context.chat_data['keyboard'].reset()
-    context.chat_data['keyboard'].create('start')
-    reply_keyboard = context.chat_data['keyboard'].keyboard
-    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=20,
-                                 input_field_placeholder='Выберите действие из подсказок')
-    context.bot.send_message(text=text, chat_id=update.message.chat_id, reply_markup=markup)
+            context.chat_data['sure'] = False
+            context.chat_data['feedback'] = False
+            context.chat_data['phone'] = False
+            context.chat_data['after_phone'] = False
+            context.chat_data['change_phone'] = False
+            context.chat_data['set_phone'] = False
+            context.chat_data['cancel'] = False
+            text = 'Привет! Это бот, который поможет Вам записаться на приём к мастеру.\n' \
+                   'Выберите действие, и я Вам помогу!\n\n' \
+                   'Обращайтесь к подсказкам на клавиатуре, они Вам помогут. '
+        else:
+            text = 'Что-то ещё? Выберите подсказку /Контакты, чтобы узнать о нас больше!'
+            context.chat_data['feedback'] = False
+            context.chat_data['phone'] = False
+            context.chat_data['cancel'] = False
+            context.chat_data['change_phone'] = False
+        context.chat_data['keyboard'].reset()
+        context.chat_data['keyboard'].create('start')
+        reply_keyboard = context.chat_data['keyboard'].keyboard
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=True,
+                                     input_field_placeholder='Выберите действие из подсказок')
+        context.bot.send_message(text=text, chat_id=update.message.chat_id, reply_markup=markup)
+    except AccessError:
+        pass
 
 
 def info(update, context):
     context.chat_data['change_phone'] = False
-    context.bot.send_message(text=get_info(update, context), chat_id=update.message.chat_id)
+    context.bot.send_message(text=get_info(update, context), chat_id=update.message.chat_id,
+                             parse_mode=telegram.ParseMode.MARKDOWN)
 
 
 def get_info(update, context):
+    global BANNEDUSERS
+
     id = update['message']['chat']['id']
     try:
         name = update['message']['chat']['first_name']
@@ -386,17 +544,18 @@ def get_info(update, context):
         date = datetime.datetime.now(tz=context.bot_data['tz']).strftime('%d.%m.%Y в %H:%M')
         date += ' UTC+{}:00'.format(str(context.bot_data['tzn']))
     txt = surname + ' ' + name + '\n'
-    txt += 'user_id - ' + str(id) + (' - ' + nickname + '\n') if nickname else '\n'
+    link = """{}""".format(str(id))
+    txt += 'user_id - ' + '{}'.format(link) + (' - ' + nickname + '\n') if nickname else 'user_id - {}\n'.format(link)
     txt += ('phone: ' + str(phone) + '\n') if phone else 'phone number is not specified\n'
-    txt += 'Дата создания:\n'
+    txt += 'Дата регистрации:\n'
     txt += date + '\n'
     if 'keyboard' in context.chat_data.keys():
         if context.chat_data['keyboard'].is_admin():
             txt += 'role: admin\n'
         else:
-            txt += 'role: user\n'
+            txt += 'role: user {}\n'.format('banned' if id in BANNEDUSERS else 'active')
     else:
-        txt += 'role: user\n'
+        txt += 'role: user {}\n'.format('banned' if id in BANNEDUSERS else 'active')
     return txt
 
 
@@ -405,7 +564,7 @@ def back(update, context):
     context.chat_data['keyboard'].nextlevel -= 2
     context.chat_data['keyboard'].create('next')
     reply_keyboard = context.chat_data['keyboard'].keyboard
-    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=20)
+    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=True)
     context.bot.send_message(text='Предлагаем выбрать из этих.', chat_id=update.message.chat_id,
                              reply_markup=markup)
 
@@ -414,7 +573,7 @@ def nex(update, context):
     context.chat_data['keyboard'].reset()
     context.chat_data['keyboard'].create('next')
     reply_keyboard = context.chat_data['keyboard'].keyboard
-    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=20)
+    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=True)
     context.bot.send_message(text='Предлагаем выбрать из этих.', chat_id=update.message.chat_id,
                              reply_markup=markup)
 
@@ -426,7 +585,7 @@ def registration(update, context):
     context.chat_data['keyboard'].reset()
     context.chat_data['keyboard'].create('registration')
     reply_keyboard = context.chat_data['keyboard'].keyboard
-    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=20)
+    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=True)
     context.bot.send_message(text='Когда бы вы могли подойти?', chat_id=update.message.chat_id,
                              reply_markup=markup)
 
@@ -442,7 +601,7 @@ def appointment(update, context):
     context.chat_data['keyboard'].reset()
     context.chat_data['keyboard'].create('appointment')
     reply_keyboard = context.chat_data['keyboard'].keyboard
-    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=20)
+    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=True)
     context.bot.send_message(text=text, chat_id=update.message.chat_id, reply_markup=markup)
 
 
@@ -453,7 +612,7 @@ def time(update, context):
     context.chat_data['keyboard'].set_range(delta)
     context.chat_data['keyboard'].create('time')
     reply_keyboard = context.chat_data['keyboard'].keyboard
-    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=80)
+    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=True)
     context.bot.send_message(text='В какое время Вас ждать?', chat_id=update.message.chat_id,
                              reply_markup=markup)
 
@@ -471,7 +630,7 @@ def sign_out(update, context):
     context.chat_data['keyboard'].set_context(context.bot_data['users'][context.chat_data['user'].id])
     text = context.chat_data['keyboard'].create('sign_out')
     reply_keyboard = context.chat_data['keyboard'].keyboard
-    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=20)
+    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=True)
     context.bot.send_message(text=text, chat_id=update.message.chat_id, reply_markup=markup)
 
 
@@ -481,7 +640,7 @@ def account(update, context):
     context.chat_data['keyboard'].reset()
     context.chat_data['keyboard'].create('account')
     reply_keyboard = context.chat_data['keyboard'].keyboard
-    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=20)
+    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=True)
     context.bot.send_message(text='Добро пожаловать в личный кабинет! Узнайте статус или смените номер.',
                              chat_id=update.message.chat_id, reply_markup=markup)
 
@@ -494,7 +653,7 @@ def variant(update, context):
             ' '.join([update['message']['text'].split()[1], update['message']['text'].split()[5]]), '%d.%m.%Y %H:%M')
         context.chat_data['keyboard'].sign_out(dtm_start, dtm_end)
         reply_keyboard = [['/Контакты', '/Главное меню']]
-        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=80)
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=True)
         for el in context.bot_data['users'][update.message.chat_id]['events']:
             if el[0] == dtm_start and el[1] == dtm_end:
                 del context.bot_data['users'][update.message.chat_id]['events'][
@@ -511,7 +670,7 @@ def variant(update, context):
 def contacts(update, context):
     context.chat_data['feedback'] = False
     context.chat_data['sure'] = False
-    text = 'Немного о нас\n'
+    text = 'Немного о нас:\n'
     text += context.bot_data['info']['description'] + '\n\n'
     text += 'Наш адреc:\n'
     text += context.bot_data['info']['address'] + '\n\n'
@@ -531,20 +690,33 @@ def feedback(update, context):
 def help(update, context):
     context.chat_data['feedback'] = False
     context.chat_data['sure'] = False
-    text = 'Руководство для пользователей\n\n'
-    text += '/Старт (/start) - начало диалога, перезапуск системы\n'
-    text += '/Записаться (/appointment) - команда открывает меню для записи на приём. Вы сможете выбрать удобное время и день недели\n'
-    text += '/Отменить запись (/cancel) - команда, которая позволяет отменить запись по какой либо причине\n'
-    text += '/Контакты (/contacts) - страничка с информацией об организации\n'
-    text += '/Личный кабинет - управляйте вашими данными, открывается меню действий личного кабинета\n'
-    text += '/Помощ (/help) - небольшое описание всех команд\n'
-    text += '/Оставить отзыв (/feedback) - позволяет оставить отзыв об оказанной услуге\n'
-    text += '/Сменить телефон - позволяет сменить контактный номер для связи\n'
-    text += '/Статус (/info) - показывает ваш статус в системе\n'
-    if context.chat_data['keyboard'].is_admin():
-        text += '/admin_panel - команда для открытия меню админа\n'
-    text += 'В случае, если бот не смог помочь, Вы можете обратиться на прямую.\n'
-    text += 'Наш телефон находиться в разделе /contacts .'
+    text = """Руководство для пользователей:
+Это бот, который поможет Вам узнать информацию о нас, записаться и отменить запись на приём.
+Пользуйтесь подсказками на клавиатуре и командами, описанными ниже. 
+    
+Технические команды:
+    /Старт - запуск диалога с ботом, перезапуск системы(в случае ошибок)
+    /Записаться - меню для записи на сеанс
+    /Отменить запись - меню для отмены записи
+    /Контакты - узнайте немного больше о нас: информация об организации
+    /Личный кабинет - управляйте своими данными: телефоны, личные данные и т.д.
+    /Помощь - типичная команда /help, вы уже её читаете
+    /Статус - узнайте ваш id, дату регистрации и другую информацию
+    /Оставить отзыв - оставьте отзыв о боте или об оказанной услуге
+    /Сменить телефон - поменяйте контактный номер для записи, для связи с вами
+    /Главное меню - возвращение в главное меню (вы уже тут)
+    {} 
+Команды регистрирования записей(Использование вне контекста может повлечь к ошибкам, советуем пользоваться только подсказками):
+    /Следующая - следующая неделя дат для регистрации
+    /Назад - вернуться на прошлую страницу
+    /День недели <дата> - Доступное время для записи в этот день
+    /В <промежуток времени> - Выберите промежуток для записи
+    /Назад к неделе - вернуться на прошлую страницу
+    /Назад к расписанию <дата> - вернуться на прошлую страницу
+    
+Приятного использования!
+    """.format('/admin_panel - панель для администрирования, отдельное описание внутри!\n' if context.chat_data[
+        'keyboard'].is_admin() else '\n')
     context.bot.send_message(text=text, chat_id=update.message.chat_id)
 
 
@@ -575,6 +747,43 @@ def correct_mobile(message):
             return False
 
 
+def share_contact(update, context):
+    context.bot_data['users'][context.chat_data['user'].id]['phone'] = update.message.contact.phone_number
+    context.bot_data['users'][context.chat_data['user'].id]['info'] = get_info(update, context)
+    if context.chat_data['change_phone']:
+        context.chat_data['change_phone'] = False
+        context.chat_data['keyboard'].reset()
+        context.chat_data['keyboard'].create('account')
+        reply_keyboard = context.chat_data['keyboard'].keyboard
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=True)
+        context.bot.send_message(text='Вы в личном кабинете. Телефон успешно изменён.',
+                                 chat_id=update.message.chat_id, reply_markup=markup)
+
+    else:
+        context.chat_data['keyboard'].reset()
+        context.chat_data['keyboard'].create('sure')
+        reply_keyboard = context.chat_data['keyboard'].keyboard
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=True)
+        context.chat_data['sure'] = True
+        context.bot.send_message(text='Уверены, что хотите записаться?', chat_id=update.message.chat_id,
+                                 reply_markup=markup)
+    context.chat_data['feedback'] = False
+    context.chat_data['phone'] = False
+    context.chat_data['cancel'] = False
+
+
+def self_contact(update, context):
+    if context.chat_data['change_phone']:
+        context.chat_data['set_phone'] = True
+    else:
+        context.chat_data['phone'] = True
+    context.chat_data['keyboard'].reset()
+    context.chat_data['change_phone'] = False
+    markup = ReplyKeyboardRemove()
+    context.bot.send_message(text='Оставьте свой телефон без разделительных знаков.',
+                             chat_id=update.message.chat_id, reply_markup=markup)
+
+
 def book(update, context):
     message = update.message.text
     range = context.chat_data['keyboard'].get_range()
@@ -602,7 +811,7 @@ def book(update, context):
             if len(tmd) > 2:
                 del context.bot_data['users'][context.chat_data['user'].id]['events'][-1]
                 reply_keyboard = [['/Главное меню']]
-                markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=80)
+                markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=True)
                 text = 'Вы записываетесь слишком часто за последний час. Повторите попытку позже или обратитесь на горячую линюю.'
                 context.bot.send_message(text=text, chat_id=update.message.chat_id,
                                          reply_markup=markup)
@@ -627,7 +836,7 @@ def book(update, context):
                     str(context.bot_data['tzn']) if context.bot_data['tzn'] > 9 else '0' + str(context.bot_data['tzn']))
                 calendar.update_event(time, timeend, '\n'.join(get_info(update, context).split('\n')[:5]))
                 reply_keyboard = [['/Главное меню']]
-                markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=80)
+                markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=True)
                 text = 'Мы будем вас ждать {}!'.format(
                     str(context.chat_data['keyboard'].timedate.strftime('%d.%m.%Y')) + ' в ' + str(
                         context.chat_data['keyboard'].sure))
@@ -638,7 +847,7 @@ def book(update, context):
             context.chat_data['keyboard'].reset()
             context.chat_data['keyboard'].create('time')
             reply_keyboard = context.chat_data['keyboard'].keyboard
-            markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=80)
+            markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=True)
             context.bot.send_message(text='В какое время Вас ждать?', chat_id=update.message.chat_id,
                                      reply_markup=markup)
     elif context.chat_data['feedback']:
@@ -656,7 +865,7 @@ def book(update, context):
                 if context.bot_data['users'][context.chat_data['user'].id]['phone']:
                     context.chat_data['keyboard'].create('sure')
                     reply_keyboard = context.chat_data['keyboard'].keyboard
-                    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=100)
+                    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=True)
                     context.chat_data['sure'] = True
                     context.chat_data['feedback'] = False
                     context.chat_data['phone'] = False
@@ -668,8 +877,13 @@ def book(update, context):
                     context.chat_data['phone'] = True
                     context.chat_data['feedback'] = False
                     context.chat_data['cancel'] = False
-                    context.bot.send_message(text='Оставьте свой телефон для связи без разделительных знаков.',
-                                             chat_id=update.message.chat_id)
+                    context.chat_data['keyboard'].reset()
+                    markup = ReplyKeyboardMarkup(keyboard=[[KeyboardButton('/Ввести в ручную')], [
+                        KeyboardButton('/Отправить свой контакт\n(рекомендуем)',
+                                       request_contact=True)]],
+                                                 one_time_keyboard=False, resize_keyboard=True)
+                    context.bot.send_message(text='Выберите вариант ввода телефона.',
+                                             chat_id=update.message.chat_id, reply_markup=markup)
             else:
                 context.bot.send_message(text='Кажется, я Вас не понимаю.', chat_id=update.message.chat_id)
         else:
@@ -682,7 +896,7 @@ def book(update, context):
             context.chat_data['cancel'] = False
             context.chat_data['keyboard'].create('sure')
             reply_keyboard = context.chat_data['keyboard'].keyboard
-            markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=100)
+            markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=True)
             context.chat_data['sure'] = True
             context.chat_data['feedback'] = False
             context.chat_data['phone'] = False
@@ -694,7 +908,7 @@ def book(update, context):
             context.chat_data['keyboard'].create('sure')
             reply_keyboard = context.chat_data['keyboard'].keyboard
             context.chat_data['cancel'] = True
-            markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=100)
+            markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True)
             context.bot.send_message(text='Телефон не соответствует требованиям, отменить запись?',
                                      chat_id=update.message.chat_id,
                                      reply_markup=markup)
@@ -706,7 +920,7 @@ def book(update, context):
             context.chat_data['keyboard'].reset()
             context.chat_data['keyboard'].create('start')
             reply_keyboard = context.chat_data['keyboard'].keyboard
-            markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=20)
+            markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=True)
             context.bot.send_message(text=text, chat_id=update.message.chat_id, reply_markup=markup)
         else:
             context.chat_data['phone'] = True
@@ -715,9 +929,10 @@ def book(update, context):
         context.chat_data['keyboard'].reset()
         context.chat_data['keyboard'].create('sure')
         reply_keyboard = context.chat_data['keyboard'].keyboard
-        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=100)
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=True)
         context.chat_data['sure'] = True
         context.chat_data['feedback'] = False
+        context.chat_data['after_phone'] = False
         context.chat_data['phone'] = False
         context.chat_data['cancel'] = False
         context.bot.send_message(text='Уверены, что хотите записаться?', chat_id=update.message.chat_id,
@@ -732,7 +947,7 @@ def book(update, context):
             context.chat_data['keyboard'].reset()
             context.chat_data['keyboard'].create('account')
             reply_keyboard = context.chat_data['keyboard'].keyboard
-            markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=20)
+            markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=True)
             context.bot.send_message(text='Вы в личном кабинете.',
                                      chat_id=update.message.chat_id, reply_markup=markup)
     elif context.chat_data['set_phone']:
@@ -741,7 +956,7 @@ def book(update, context):
         context.chat_data['keyboard'].create('account')
         if correct_mobile(message):
             reply_keyboard = context.chat_data['keyboard'].keyboard
-            markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=100)
+            markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=True)
             context.chat_data['feedback'] = False
             context.bot_data['users'][context.chat_data['user'].id]['phone'] = message
             context.bot_data['users'][context.chat_data['user'].id]['info'] = get_info(update, context)
@@ -752,7 +967,7 @@ def book(update, context):
             context.chat_data['keyboard'].reset()
             context.chat_data['keyboard'].create('sure')
             reply_keyboard = context.chat_data['keyboard'].keyboard
-            markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=100)
+            markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=True)
             context.bot.send_message(text='Телефон не правильный, уверены, что хотите сменить его?',
                                      chat_id=update.message.chat_id,
                                      reply_markup=markup)
@@ -767,10 +982,12 @@ dp = updater.dispatcher
 ##### example.register('старт', start, '!')
 dp.add_handler(CommandHandler("set_timezone", set_timezone, pass_chat_data=True))
 ch.register("Статус", info)
+
 ch.register("Сменить телефон", change_phone)
 dp.add_handler(CommandHandler("start", start, pass_chat_data=True))
 ch.register("Старт", start)
 ch.register("старт", start)
+ch.register("Ввести в ручную", self_contact)
 dp.add_handler(CommandHandler("main_menu", start, pass_chat_data=True))
 ch.register("Главное меню", start)
 dp.add_handler(CommandHandler("appointment", appointment, pass_chat_data=True))
@@ -815,11 +1032,11 @@ ch.register("Запись", variant, have_args=True)
 dp.add_handler(CommandHandler("variant", variant, pass_chat_data=True))
 dp.add_handler(CommandHandler("admin_panel", admin, pass_chat_data=True))
 
-dp.add_handler(CommandHandler("set_description", set_description, pass_chat_data=True))
+dp.add_handler(CommandHandler("set_description", set_description, pass_chat_data=True, pass_args=True))
 
-dp.add_handler(CommandHandler("set_contact_number", set_number, pass_chat_data=True))
+dp.add_handler(CommandHandler("set_contact_number", set_number, pass_chat_data=True, pass_args=True))
 
-dp.add_handler(CommandHandler("set_address", set_address, pass_chat_data=True))
+dp.add_handler(CommandHandler("set_address", set_address, pass_chat_data=True, pass_args=True))
 
 dp.add_handler(CommandHandler("admin", admin_info, pass_chat_data=True))
 
@@ -829,8 +1046,12 @@ dp.add_handler(CommandHandler("add_superuser", add_superuser, pass_chat_data=Tru
 
 dp.add_handler(CommandHandler("del_superuser", del_superuser, pass_chat_data=True, pass_args=True))
 
-dp.add_handler(CommandHandler("user_info", user_info, pass_chat_data=True, pass_args=True))
+dp.add_handler(CommandHandler("ban_user", ban_user, pass_chat_data=True, pass_args=True))
+dp.add_handler(CommandHandler("data_clear", data_clear, pass_chat_data=True))
+dp.add_handler(CommandHandler("unban_user", unban_user, pass_chat_data=True, pass_args=True))
 
+dp.add_handler(CommandHandler("user_info", user_info, pass_chat_data=True, pass_args=True))
+dp.add_handler(MessageHandler(Filters.contact, share_contact, pass_chat_data=True))
 dp.add_handler(MessageHandler(Filters.text, ch, pass_chat_data=True, pass_job_queue=True))
 # dp.add_handler(MessageHandler(Filters.text, book,
 #                            pass_job_queue=True,
