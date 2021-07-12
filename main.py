@@ -72,7 +72,7 @@ def admin_info(update, context):
 Приятной модерации!
     """
     try:
-        if context.chat_data['keyboard'].is_admin():
+        if context.chat_data['keyboard'].is_admin(update.message.chat_id):
             context.bot.send_message(
                 text=txt,
                 chat_id=update.message.chat_id)
@@ -90,7 +90,7 @@ def admin_info(update, context):
 
 def user_info(update, context):
     try:
-        if context.chat_data['keyboard'].is_admin():
+        if context.chat_data['keyboard'].is_admin(update.message.chat_id):
             txt = ''
             try:
                 user_id = int(context.args[0])
@@ -151,7 +151,7 @@ def add_superuser(update, context):
     global SUPERUSERS
     try:
         user_id = context.args[0]
-        if context.chat_data['keyboard'].is_admin():
+        if context.chat_data['keyboard'].is_admin(update.message.chat_id):
             SUPERUSERS.append(int(user_id))
             context.bot.send_message(
                 text='Суперпользователь успешно добавлен',
@@ -179,7 +179,7 @@ def del_superuser(update, context):
     global SUPERUSERS
     try:
         user_id = context.args[0]
-        if context.chat_data['keyboard'].is_admin() and int(user_id) != SUPERUSERS[0]:
+        if context.chat_data['keyboard'].is_admin(update.message.chat_id) and int(user_id) != SUPERUSERS[0]:
             if int(user_id) in SUPERUSERS:
                 del SUPERUSERS[SUPERUSERS.index(int(user_id))]
                 txt = 'Суперпользователь успешно удалён'
@@ -208,7 +208,7 @@ def ban_user(update, context):
     global SUPERUSERS, BANNEDUSERS
     try:
         user_id = context.args[0]
-        if context.chat_data['keyboard'].is_admin() and int(user_id) != SUPERUSERS[0]:
+        if context.chat_data['keyboard'].is_admin(update.message.chat_id) and int(user_id) != SUPERUSERS[0]:
             BANNEDUSERS.append(int(user_id))
             context.bot.send_message(
                 text='Пользователь добавлен в чёрный список',
@@ -236,7 +236,7 @@ def unban_user(update, context):
     global SUPERUSERS, BANNEDUSERS
     try:
         user_id = context.args[0]
-        if context.chat_data['keyboard'].is_admin():
+        if context.chat_data['keyboard'].is_admin(update.message.chat_id):
             if int(user_id) in BANNEDUSERS:
                 del BANNEDUSERS[BANNEDUSERS.index(int(user_id))]
                 txt = 'Пользователь успешно удалён из чёрного списка'
@@ -268,7 +268,7 @@ def set_timezone(update, context):
     global SUPERUSERS
     try:
         timezone = int(context.args[0])
-        if context.chat_data['keyboard'].is_admin():
+        if context.chat_data['keyboard'].is_admin(update.message.chat_id):
             ltzn = context.bot_data['tzn']
             context.bot_data['tz'] = datetime.timezone(datetime.timedelta(hours=timezone))
             context.bot_data['tzn'] = timezone
@@ -303,7 +303,7 @@ def set_timezone(update, context):
 
 def send_feedbacks(update, context):
     try:
-        if context.chat_data['keyboard'].is_admin():
+        if context.chat_data['keyboard'].is_admin(update.message.chat_id):
             if context.bot_data['feedbacks']:
                 text = 'Отзывы:\n\n'
                 for key in context.bot_data['feedbacks']:
@@ -327,7 +327,7 @@ def send_feedbacks(update, context):
 
 def set_description(update, context):
     try:
-        if context.chat_data['keyboard'].is_admin():
+        if context.chat_data['keyboard'].is_admin(update.message.chat_id):
             mes = context.args[0]
             text = 'Описание успешно обновлено.'
             context.bot_data['info']['description'] = mes
@@ -350,7 +350,7 @@ def set_description(update, context):
 
 def set_number(update, context):
     try:
-        if context.chat_data['keyboard'].is_admin():
+        if context.chat_data['keyboard'].is_admin(update.message.chat_id):
             mes = context.args[0]
             if correct_mobile(mes):
                 context.bot_data['info']['number'] = mes
@@ -378,7 +378,7 @@ def set_number(update, context):
 
 def set_address(update, context):
     try:
-        if context.chat_data['keyboard'].is_admin():
+        if context.chat_data['keyboard'].is_admin(update.message.chat_id):
             mes = context.args[0]
             context.bot_data['info']['address'] = mes
             text = 'Адрес успешно обновлён.'
@@ -474,7 +474,7 @@ def start(update, context):
             context.chat_data['keyboard'].set_calendar(calendar)
             context.chat_data['keyboard'].set_tz(context.bot_data['tz'], context.bot_data['tzn'])
             if context.chat_data['user'].id in SUPERUSERS:
-                context.chat_data['keyboard'].admin_panel()
+                context.chat_data['keyboard'].admin_panel(SUPERUSERS)
 
             context.chat_data['sure'] = False
             context.chat_data['feedback'] = False
@@ -550,7 +550,7 @@ def get_info(update, context):
     txt += 'Дата регистрации:\n'
     txt += date + '\n'
     if 'keyboard' in context.chat_data.keys():
-        if context.chat_data['keyboard'].is_admin():
+        if context.chat_data['keyboard'].is_admin(update.message.chat_id):
             txt += 'role: admin\n'
         else:
             txt += 'role: user {}\n'.format('banned' if id in BANNEDUSERS else 'active')
@@ -716,7 +716,7 @@ def help(update, context):
     
 Приятного использования!
     """.format('/admin_panel - панель для администрирования, отдельное описание внутри!\n' if context.chat_data[
-        'keyboard'].is_admin() else '\n')
+        'keyboard'].is_admin(update.message.chat_id) else '\n')
     context.bot.send_message(text=text, chat_id=update.message.chat_id)
 
 

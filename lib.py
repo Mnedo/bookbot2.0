@@ -20,17 +20,19 @@ class Buttons:
         self.ctx = ''
         self.tz = datetime.timezone(datetime.timedelta(hours=3))
         self.tzn = 3
-        self.admin = False
+        self.admin = []
 
-    def admin_panel(self):
-        self.admin = True
+    def admin_panel(self, superusers):
+        self.admin = superusers
 
     def rusific(self, w):
         mn = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
         return mn[int(w) - 1]
 
-    def is_admin(self):
-        return self.admin
+    def is_admin(self, id):
+        if int(id) in self.admin:
+            return True
+        return False
 
     def set_calendar(self, map):
         self.calendar = map
@@ -74,7 +76,8 @@ class Buttons:
         if self.is_admin():
             if command == 'start':
                 self.keyboard.append(['/admin', '/user_info', '/main_menu'])
-                self.keyboard.append(['/ban_user', '/disban_user'])
+                self.keyboard.append(['/ban_user', '/unban_user'])
+                self.keyboard.append(['/add_superuser', '/del_superuser'])
                 self.keyboard.append(['/set_description', '/set_timezone'])
                 self.keyboard.append(['/set_contact_number', '/set_address'])
                 self.keyboard.append(['/data_clear'])
