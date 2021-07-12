@@ -470,7 +470,7 @@ def start(update, context):
             if 'info' not in context.bot_data.keys():
                 context.bot_data['info'] = {'description': 'Я очень известный кто-то приходите ко мне',
                                             'number': '80000000000', 'address': 'Москва, ул. Пушкина'}
-            context.chat_data['keyboard'] = Buttons()
+            context.chat_data['keyboard'] = Buttons(update['message']['chat']['id'])
             context.chat_data['keyboard'].set_calendar(calendar)
             context.chat_data['keyboard'].set_tz(context.bot_data['tz'], context.bot_data['tzn'])
             if context.chat_data['user'].id in SUPERUSERS:

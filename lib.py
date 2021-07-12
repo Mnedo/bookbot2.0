@@ -10,7 +10,8 @@ class AccessError(Exception):
 
 
 class Buttons:
-    def __init__(self):
+    def __init__(self, id):
+        self.id = id
         self.keyboard = []
         self.timedate = ''
         self.timeutc = ''
@@ -73,7 +74,7 @@ class Buttons:
         self.calendar.sign_out(dtm_start, dtm_end)
 
     def create_admin(self, command):
-        if self.is_admin():
+        if self.is_admin(self.id):
             if command == 'start':
                 self.keyboard.append(['/admin', '/user_info', '/main_menu'])
                 self.keyboard.append(['/ban_user', '/unban_user'])
@@ -142,7 +143,7 @@ class Buttons:
             elif command == 'start':
                 self.keyboard.append(['/Записаться', '/Отменить запись', '/Контакты'])
                 self.keyboard.append(['/Личный кабинет', '/Помощь'])
-                if self.is_admin():
+                if self.is_admin(self.id):
                     self.keyboard.append(['/admin_panel'])
             elif command == 'account':
                 self.keyboard.append(['/Статус', '/Оставить отзыв'])
