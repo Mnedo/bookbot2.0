@@ -8,9 +8,10 @@ from googleapiclient.discovery import build
 SCOPES = ['https://www.googleapis.com/auth/calendar']
 
 # SERVICE_ACCOUNT_FILE = 'innate-actor-318707-a7cf8eb2099f.json'
-settings = open('setup.json')
+settings = open('setup.json', encoding='utf-8')
 data = json.load(settings)
 SERVICE_ACCOUNT_FILE = data['SERVICE_ACCOUNT_FILE']
+day = [data['START_DAY'], data['END_DAY']]
 settings.close()
 
 
@@ -121,6 +122,8 @@ class GoogleCalendar(object):
         return res
 
     def is_valid_day(self, dttm):
+        global day
+
         if dttm.date().strftime('%d.%m') == datetime.datetime.now(tz=self.tz).strftime('%d.%m'):
             now = datetime.datetime.strptime(dttm.strftime('%Y-%m-%d %H:%M'), '%Y-%m-%d %H:%M').isoformat()
             nowd = now.split('T')[0] + 'T{}:00:00.000000Z'.format(
@@ -137,17 +140,20 @@ class GoogleCalendar(object):
                                                    orderBy='startTime').execute()
         events = events_result.get('items', [])
         counter = 0
+
         if events:
             for event in events:
-                if event['summary'] == 'Начало рабочего дня':
+                if event['summary'] == day[0]:
                     counter += 1
-                elif event['summary'] == 'Конец рабочего дня':
+                elif event['summary'] == day[1]:
                     counter += 1
             if counter == 2:
                 return True
             return False
 
     def valid_time(self, dttm):
+        global day
+
         if dttm.date() == datetime.datetime.now(tz=self.tz).date():
             now = datetime.datetime.now(tz=self.tz).isoformat() + 'Z'
             nowd = datetime.datetime.now(tz=self.tz) + datetime.timedelta(days=1)
@@ -166,9 +172,9 @@ class GoogleCalendar(object):
         end_time = ''
         exeptions = []
         for event in events:
-            if event['summary'] == 'Начало рабочего дня':
+            if event['summary'] == day[0]:
                 start_time = event['end']['dateTime']
-            elif event['summary'] == 'Конец рабочего дня':
+            elif event['summary'] == day[1]:
                 end_time = event['start']['dateTime']
             else:
                 if [datetime.datetime.strptime(event['start']['dateTime'],

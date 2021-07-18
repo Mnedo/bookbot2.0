@@ -1,4 +1,5 @@
 import datetime
+import json
 
 
 class AccessError(Exception):
@@ -19,6 +20,15 @@ class Event:
         self.has_notified = has_notified
         self.service_id = service_id
         self.format = '%Y-%m-%d %H:%M'
+
+    def __iter__(self):
+        yield 'user_id', self.user_id
+        yield 'registration_time', self.reg_time.strftime('%d.%m.%Y %H:%M:%S')
+        yield 'start_time', self.start_time.strftime('%d.%m.%Y %H:%M:%S')
+        yield 'end_time', self.end_time.strftime('%d.%m.%Y %H:%M:%S')
+        yield 'master', self.master_id
+        yield 'has_notified', self.has_notified
+        yield 'service', {'service_name': self.service_id}
 
     def notify(self):
         self.has_notified = True
@@ -54,6 +64,19 @@ class User:
         self.tzn = tzn
         self.reg_time = datetime.datetime.strptime(datetime.datetime.now(tz=tz).strftime('%H:%M %d.%m.%Y'),
                                                    '%H:%M %d.%m.%Y')
+
+    def __iter__(self):
+        events = []
+        for event in self.events:
+            events.append(dict(event))
+        yield 'id', self.id
+        yield 'name', self.name
+        yield 'surname', self.surname
+        yield 'phone', self.phone
+        yield 'events', events
+        yield 'is_admin', self.is_admin
+        yield 'is_banned', self.is_banned
+        yield 'registration_time', self.reg_time.strftime('%H:%M %d.%m.%Y')
 
     def set_tz(self, tz, tzn):
         ltzn = self.tzn
@@ -126,6 +149,17 @@ class Master:
         self.calendarId = calendarId
         self.duration = duration
         self.services = {}
+
+    def __iter__(self):
+        serv = {}
+        i = 0
+        for key in self.services.keys():
+            i += 1
+            serv[i] = {'name': key, 'duration': self.services[key]}
+        yield 'id', self.id
+        yield 'name', self.name
+        yield 'calendarID', self.calendarId
+        yield 'services', serv
 
     def add_service(self, name, duration=1):
         self.services[name] = duration
@@ -215,6 +249,7 @@ class Buttons:
                 self.keyboard.append(['/set_description'])
                 self.keyboard.append(['/add_master', '/del_master'])
                 self.keyboard.append(['/add_service', '/del_service'])
+                self.keyboard.append(['/makemigration', '/applymigration'])
                 self.keyboard.append(['/data_clear'])
                 self.keyboard.append(['/get_feedbacks'])
         else:
@@ -370,7 +405,8 @@ class Buttons:
                 if self.ctx.events:
                     text = 'Выберите вариант, который хотите отменить.'
                     for el in self.ctx.events:
-                        if el.start_time > datetime.datetime.strptime(datetime.datetime.now(tz=self.tz).strftime('%Y-%m-%d %H:%M:%S'), '%Y-%m-%d %H:%M:%S'):
+                        if el.start_time > datetime.datetime.strptime(
+                                datetime.datetime.now(tz=self.tz).strftime('%Y-%m-%d %H:%M:%S'), '%Y-%m-%d %H:%M:%S'):
                             self.keyboard.append(['/Запись ' + str(el)])
                     if not self.keyboard:
                         text = 'Кажется, Вы ещё не записаны. /appointment - запишитесь!'
