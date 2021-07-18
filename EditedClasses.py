@@ -76,7 +76,7 @@ class EditCommandHandler:
                             smb[1](update, context)
                             has_used = True
                             break
-                elif str(message).count(' ') == 5:
+                elif str(message).count(' ') == 7:
                     if smb[3]:
                         if str(smb[2]) + str(smb[0]) == message.split()[0]:
                             smb[1](update, context)
@@ -95,5 +95,5 @@ class EditCommandHandler:
         except Exception as error:
             print(error)
             args[1].bot.send_message(
-                text='Произошла ошибка, попробуйте ещё раз. Если ошибка повторится, введите /start',
+                text='Произошла ошибка, попробуйте ещё раз. Если ошибка повторится, введите /start\nВы можете связаться с менеджером по команде /manager',
                 chat_id=args[0].message.chat_id)

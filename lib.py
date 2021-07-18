@@ -9,6 +9,128 @@ class AccessError(Exception):
                 chat_id=args[1])
 
 
+class Event:
+    def __init__(self, reg_time, start_time, end_time, user_id, master_id, service_id, has_notified=False):
+        self.reg_time = reg_time
+        self.start_time = start_time
+        self.end_time = end_time
+        self.user_id = user_id
+        self.master_id = master_id
+        self.has_notified = has_notified
+        self.service_id = service_id
+        self.format = '%Y-%m-%d %H:%M'
+
+    def notify(self):
+        self.has_notified = True
+
+    def set_format(self, format):
+        self.format = format
+
+    def update(self, ltzn, tzn):
+        self.reg_time -= datetime.timedelta(hours=ltzn) - datetime.timedelta(hours=tzn)
+        self.start_time -= datetime.timedelta(hours=ltzn) - datetime.timedelta(hours=tzn)
+        self.end_time -= datetime.timedelta(hours=ltzn) - datetime.timedelta(hours=tzn)
+
+    def __str__(self):
+        date = self.start_time.strftime('%d.%m.%Y')
+        starttime = self.start_time.strftime('%H:%M')
+        endtime = self.end_time.strftime('%H:%M')
+        txt = date + ' в ' + starttime + ' - ' + endtime + ' - ' + self.service_id
+        return txt
+
+
+class User:
+    def __init__(self, user_id, chat_id, tz, tzn):
+        self.id = user_id
+        self.chat = chat_id
+        self.name = ''
+        self.surname = ''
+        self.nickname = ''
+        self.is_admin = False
+        self.is_banned = False
+        self.phone = 0
+        self.events = []
+        self.tz = tz
+        self.tzn = tzn
+        self.reg_time = datetime.datetime.strptime(datetime.datetime.now(tz=tz).strftime('%H:%M %d.%m.%Y'),
+                                                   '%H:%M %d.%m.%Y')
+
+    def set_tz(self, tz, tzn):
+        ltzn = self.tzn
+        self.tz = tz
+        self.tzn = tzn
+        self.reg_time -= datetime.timedelta(hours=ltzn) - datetime.timedelta(hours=tzn)
+        for event in self.events:
+            event.update(ltzn, tzn)
+
+    def create_info(self, update, banned, admins):
+        self.id = int(update['message']['chat']['id'])
+        try:
+            self.name = update['message']['chat']['first_name']
+            if not self.name:
+                self.name = ''
+        except KeyError:
+            self.name = ''
+        try:
+            self.surname = update['message']['chat']['last_name']
+            if not self.surname:
+                self.surname = ''
+        except KeyError:
+            self.surname = ''
+        try:
+            self.nickname = update['message']['chat']['username']
+            if not self.nickname:
+                self.nickname = ''
+        except KeyError:
+            self.nickname = ''
+        if self.id in banned:
+            self.is_banned = True
+        if self.id in admins:
+            self.is_admin = True
+
+    def book_info(self, event):
+        text = """{} {}
+Контактный номер: {}
+ID в системе: {}
+{}""".format(self.name, self.surname, self.phone, self.id, event.reg_time.strftime('%d.%m.%Y %H:%M'))
+        return text
+
+    def __str__(self):
+        status = 'заблокирован' if self.is_banned else 'пользователь'
+        if status == 'пользователь':
+            if self.is_admin:
+                status = 'модератор'
+        phone = str(self.phone) if self.phone else 'Не указан'
+        if self.events:
+            posts = '\n'
+            for event in self.events:
+                posts += str(event) + '\n'
+        else:
+            posts = '\n     Записи отсутствуют'
+        text = """#{} Пользователь {} {}
+Дата регистрации: {}
+Статус: {}
+Контакт: {}
+Активные записи: {}""".format(self.id, self.name, self.surname, self.reg_time.strftime('%d.%m.%Y в %H:%M'), status,
+                              phone, posts)
+        return text
+
+    def add_event(self, event: Event):
+        self.events.append(event)
+
+
+class Master:
+    def __init__(self, mastername, calendarId, id, duration=1):
+        self.name = mastername
+        self.id = id
+        self.calendarId = calendarId
+        self.duration = duration
+        self.services = {}
+
+    def add_service(self, name, duration=1):
+        self.services[name] = duration
+
+
 class Buttons:
     def __init__(self, id):
         self.id = id
@@ -20,11 +142,20 @@ class Buttons:
         self.nextlevel = 0
         self.ctx = ''
         self.tz = datetime.timezone(datetime.timedelta(hours=3))
-        self.tzn = 3
+        self.tz_int = 3
         self.admin = []
+        self.services = {}
+        self.master_id = 0
+        self.service_id = ''
+        self.date = ''
+        self.delta_time = ''
+        self.time = ''
 
     def admin_panel(self, superusers):
         self.admin = superusers
+
+    def service(self, mn):
+        self.services = mn
 
     def rusific(self, w):
         mn = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
@@ -38,22 +169,23 @@ class Buttons:
     def set_calendar(self, map):
         self.calendar = map
 
-    def set_sure(self, mes):
-        self.sure = mes
+    def set_time(self, mes):
+        self.timedate = datetime.datetime.strptime((self.date.strftime('%Y-%d-%m ') + mes.split('-')[0]),
+                                                   '%Y-%d-%m %H:%M')
 
     def set_tz(self, tz, tzn):
         self.tz = tz
-        self.tzn = tzn
+        self.tz_int = tzn
         self.calendar.set_tz(tz, tzn)
 
-    def set_time(self, dttm):
+    def set_weekday(self, dttm):
         ff = True
         day = datetime.datetime.now(tz=self.tz) - datetime.timedelta(days=1)
         while ff:
             day += datetime.timedelta(days=1)
             if day.strftime('%d.%m') == dttm:
                 ff = False
-                self.timedate = datetime.datetime.strptime(day.strftime('%d.%m.%Y'), '%d.%m.%Y')
+                self.date = datetime.datetime.strptime(day.strftime('%d.%m.%Y'), '%d.%m.%Y')
 
     def set_range(self, rng):
         self.range = range(int(rng[0].split(':')[0]), int(rng[1].split(':')[0]) + 1)
@@ -79,8 +211,10 @@ class Buttons:
                 self.keyboard.append(['/admin', '/user_info', '/main_menu'])
                 self.keyboard.append(['/ban_user', '/unban_user'])
                 self.keyboard.append(['/add_superuser', '/del_superuser'])
-                self.keyboard.append(['/set_description', '/set_timezone'])
                 self.keyboard.append(['/set_contact_number', '/set_address'])
+                self.keyboard.append(['/set_description'])
+                self.keyboard.append(['/add_master', '/del_master'])
+                self.keyboard.append(['/add_service', '/del_service'])
                 self.keyboard.append(['/data_clear'])
                 self.keyboard.append(['/get_feedbacks'])
         else:
@@ -92,8 +226,8 @@ class Buttons:
         if command == 'next':
             self.nextlevel += 1
             counter = 0
-            var = datetime.datetime.today() - datetime.timedelta(days=1)
-            self.vt = datetime.datetime.today()
+            var = datetime.datetime.now(tz=self.tz) - datetime.timedelta(days=1)
+            self.vt = datetime.datetime.now(tz=self.tz)
             mainrow = []
             while len(mainrow) <= 2:
                 counter += 1
@@ -149,48 +283,73 @@ class Buttons:
                 self.keyboard.append(['/Статус', '/Оставить отзыв'])
                 self.keyboard.append(['/Сменить телефон', '/Главное меню'])
             elif command == 'registration':
-                sp = self.calendar.valid_time(self.timedate)
+                sp = self.calendar.valid_time(self.date)
+                ex1 = []
+                for el in sp[2]:
+                    sm = int(el[0].strftime('%H')) * 60 + int(el[0].strftime('%M'))
+                    em = int(el[1].strftime('%H')) * 60 + int(el[1].strftime('%M'))
+                    ex1.append([sm, em])
+                sttm = int(sp[0].strftime('%H')) * 60 + int(sp[0].strftime('%M'))
+                endtm = int(sp[1].strftime('%H')) * 60 + int(sp[1].strftime('%M'))
+                d = 60 * int(self.services[self.master_id].services[self.service_id])
+                res = []
+                ex1 = list(map(lambda x: [x[0], x[1] + 1], ex1))
+                p1 = []
+                for el in ex1:
+                    for i in range(el[0], el[1]):
+                        p1.append(i)
+                for i in range(sttm, endtm + 1, d):
+                    if i + 1 not in p1 and i + d - 1 not in p1:
+                        res.append([datetime.timedelta(minutes=i), datetime.timedelta(minutes=(i + d))])
+                res = list(
+                    map(lambda x: [(x[0] + self.date).strftime('%H:%M'), (x[1] + self.date).strftime('%H:%M')], res))
+                # next res
                 mainrow = []
-                c1 = '/В {}:00-{}:00'.format(str(self.tzn + 6) if self.tzn + 6 < 24 else '24',
-                                             str(self.tzn + 9) if self.tzn + 9 < 24 else '24')
-                c2 = '/В {}:00-{}:00'.format(str(self.tzn + 9) if self.tzn + 9 < 24 else '24',
-                                             str(self.tzn + 14) if self.tzn + 14 < 24 else '24')
-                c3 = '/В {}:00-{}:00'.format(str(self.tzn + 14) if self.tzn + 14 < 24 else '24',
-                                             str(self.tzn + 20) if self.tzn + 20 < 24 else '24')
-                for el in sp:
+                c1 = '/В {}-{}'.format(sp[0].strftime('%H:%M'), '12:00')
+                c2 = '/В {}-{}'.format('12:00', '16:00')
+                c3 = '/В {}-{}'.format('16:00', sp[1].strftime('%H:%M'))
+                for el in res:
                     starttime = int(el[0].split(':')[0]) + int(int(el[0].split(':')[0]) // 60)
-                    endtime = int(el[1].split(':')[0]) + int(int(el[1].split(':')[0]) // 60)
-                    tz = el[2]
-                    if starttime - tz + self.tzn in range(6 + self.tzn, 9 + self.tzn):
+                    if starttime in range(int(sp[0].strftime('%H')), 12):
                         if c1 not in mainrow:
                             mainrow.append(c1)
-                    if starttime - tz + self.tzn in range(self.tzn + 9, self.tzn + 14):
+                    if starttime in range(12, 16):
                         if c2 not in mainrow:
                             mainrow.append(c2)
-                    if starttime - tz + self.tzn in range(self.tzn + 14, self.tzn + 20):
+                    if starttime in range(16, int(sp[1].strftime('%H'))):
                         if c3 not in mainrow:
                             mainrow.append(c3)
                 skip = ['/Назад к неделе']
                 self.keyboard.append(mainrow)
                 self.keyboard.append(skip)
             elif 'time' in command:
-                sp = self.calendar.valid_time(self.timedate)
+                sp = self.calendar.valid_time(self.date)
+                ex1 = []
+                for el in sp[2]:
+                    sm = int(el[0].strftime('%H')) * 60 + int(el[0].strftime('%M'))
+                    em = int(el[1].strftime('%H')) * 60 + int(el[1].strftime('%M'))
+                    ex1.append([sm, em])
+                sttm = int(sp[0].strftime('%H')) * 60 + int(sp[0].strftime('%M'))
+                endtm = int(sp[1].strftime('%H')) * 60 + int(sp[1].strftime('%M'))
+                d = 60 * int(self.services[self.master_id].services[self.service_id])
+                res = []
+                ex1 = list(map(lambda x: [x[0], x[1] + 1], ex1))
+                p1 = []
+                for el in ex1:
+                    for i in range(el[0], el[1]):
+                        p1.append(i)
+                for i in range(sttm, endtm + 1, d):
+                    if i + 1 not in p1 and i + d - 1 not in p1:
+                        res.append([datetime.timedelta(minutes=i), datetime.timedelta(minutes=(i + d))])
+                res = list(
+                    map(lambda x: [(x[0] + self.date).strftime('%H:%M'), (x[1] + self.date).strftime('%H:%M')], res))
                 mainrow = []
-                for el in sp:
-                    if int(el[0].split(':')[0]) - el[2] + self.tzn in self.range:
-                        t1 = str('{}:{}'.format(
-                            str(int(el[0].split(':')[0]) - el[2] + self.tzn) if int(el[0].split(':')[0]) - el[
-                                2] + self.tzn > 9 else '0' + str(int(el[0].split(':')[0]) - el[2] + self.tzn),
-                            str(int(el[0].split(':')[1])) if int(el[0].split(':')[1]) > 9 else '0' + str(
-                                int(el[0].split(':')[1]))))
-                        t2 = str('{}:{}'.format(
-                            str(int(el[1].split(':')[0]) - el[2] + self.tzn) if int(el[1].split(':')[0]) - el[
-                                2] + self.tzn > 9 else '0' + str(int(el[1].split(':')[0]) - el[2] + self.tzn),
-                            str(int(el[1].split(':')[1])) if int(el[1].split(':')[1]) > 9 else '0' + str(
-                                int(el[1].split(':')[1]))))
-                        if int(t1.split(':')[0]) < 24 and int(t2.split(':')[0]) < 24:
-                            time = t1 + '-' + t2
-                            mainrow.append(time)
+                for el in res:
+                    if int(el[0].split(':')[0]) in self.range and int(el[1].split(':')[0]) in self.range:
+                        t1 = el[0]
+                        t2 = el[1]
+                        time = t1 + '-' + t2
+                        mainrow.append(time)
                 mainrow_res = []
                 gr = []
                 for el in mainrow:
@@ -202,24 +361,36 @@ class Buttons:
                 mainrow = mainrow_res
                 for el in mainrow_res:
                     self.keyboard.append(el)
-                now = self.timedate.strftime('%d.%m')
+                now = self.date.strftime('%d.%m')
                 skip = ['/Назад к расписанию ' + now]
                 self.keyboard.append(skip)
             elif 'sure' == command:
                 self.keyboard.append(['Да', 'Нет'])
             elif 'sign_out' == command:
-                if self.ctx['events']:
+                if self.ctx.events:
                     text = 'Выберите вариант, который хотите отменить.'
-                    for el in self.ctx['events']:
-                        if el[0] > datetime.datetime.today():
-                            self.keyboard.append(['/Запись ' + el[0].strftime('%d.%m.%Y') + ' в ' +
-                                                  el[0].strftime('%H:%M') + ' - ' + el[1].strftime('%H:%M')])
+                    for el in self.ctx.events:
+                        if el.start_time > datetime.datetime.strptime(datetime.datetime.now(tz=self.tz).strftime('%Y-%m-%d %H:%M:%S'), '%Y-%m-%d %H:%M:%S'):
+                            self.keyboard.append(['/Запись ' + str(el)])
                     if not self.keyboard:
                         text = 'Кажется, Вы ещё не записаны. /appointment - запишитесь!'
                 else:
                     text = 'Кажется, Вы ещё не записаны. /appointment - запишитесь!'
                 self.keyboard.append(['/Записаться', '/Главное меню'])
                 return text
+            elif 'master' == command:
+                mainrow = []
+                for key in self.services.keys():
+                    mainrow.append(self.services[key].name)
+                self.keyboard.append(mainrow)
+                self.keyboard.append(['/Главное меню'])
+            elif 'service' == command:
+                mainrow = []
+                master = self.services[self.master_id]
+                for name in master.services:
+                    mainrow.append(name)
+                self.keyboard.append(mainrow)
+                self.keyboard.append(['/Главное меню'])
 
     def reset(self):
         self.keyboard = []
