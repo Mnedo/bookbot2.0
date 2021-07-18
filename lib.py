@@ -150,6 +150,11 @@ class Master:
         self.duration = duration
         self.services = {}
 
+    def __eq__(self, other):
+        if self.name == other.name and self.calendarId == other.calendarId and self.duration == other.duration:
+            return True
+        return False
+
     def __iter__(self):
         serv = {}
         i = 0
