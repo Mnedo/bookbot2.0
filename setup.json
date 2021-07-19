@@ -1,0 +1,24 @@
+{
+  "REQUEST_KWARGS": {
+    "urllib3_proxy_kwargs": {
+      "assert_hostname": "False",
+      "cert_reqs": "CERT_NONE",
+      "username": "user",
+      "password": "password"
+    }
+  },
+  "TOKEN": "1765029934:AAG3PWNX_bBlUtllnaK6ZWKH9fMaEp8fKrs",
+  "SERVICE_ACCOUNT": "test-155@innate-actor-318707.iam.gserviceaccount.com",
+  "START_DAY": "Начало рабочего дня",
+  "END_DAY": "Конец рабочего дня",
+  "SUPERUSERS": [
+    921615186
+  ],
+  "BANNEDUSERS": [],
+  "MANAGER": {
+    "phone": 89161951700,
+    "first_name": "Менеджер",
+    "last_name": "BookBot"
+  },
+  "SERVICE_ACCOUNT_FILE": "innate-actor-318707-a7cf8eb2099f.json"
+}

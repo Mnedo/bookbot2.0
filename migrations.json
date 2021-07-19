@@ -1,5 +1,5 @@
 {
-  "18.07.2021 19:28:50": {
+  "19.07.2021 06:32:03": {
     "bot_data": {
       "timezone": "3",
       "info": {
@@ -16,109 +16,20 @@
           "events": [
             {
               "user_id": 921615186,
-              "registration_time": "18.07.2021 22:27:47",
-              "start_time": "19.07.2021 10:00:00",
-              "end_time": "19.07.2021 11:00:00",
+              "registration_time": "19.07.2021 09:31:29",
+              "start_time": "21.07.2021 12:00:00",
+              "end_time": "21.07.2021 13:00:00",
               "master": 1,
               "has_notified": false,
               "service": {
                 "service_name": "Поговорим"
               }
-            }
-          ],
-          "is_admin": true,
-          "is_banned": false,
-          "registration_time": "22:27 18.07.2021"
-        }
-      },
-      "feedbacks": {
-        "921615186": [
-          "Вот такой тестовый мини-отзыв"
-        ]
-      },
-      "masters": {
-        "1": {
-          "id": 1,
-          "name": "Остеопат",
-          "calendarID": "6ogmjjrvnck3s@group.calendar.google.com",
-          "services": {
-            "1": {
-              "name": "Консульация",
-              "duration": 1
-            }
-          }
-        }
-      },
-      "SUPERUSERS": [
-        921615186
-      ],
-      "BANNEDUSERS": []
-    }
-  },
-  "18.07.2021 19:36:42": {
-    "bot_data": {
-      "timezone": "3",
-      "info": {
-        "description": "Я очень известный кто-то приходите ко мне",
-        "number": "80000000000",
-        "address": "Москва, ул. Пушкина"
-      },
-      "users": {
-        "921615186": {
-          "id": 921615186,
-          "name": "Mikhail",
-          "surname": "Nedosekin",
-          "phone": 0,
-          "events": [],
-          "is_admin": false,
-          "is_banned": false,
-          "registration_time": "22:36 18.07.2021"
-        }
-      },
-      "feedbacks": {},
-      "masters": {
-        "1": {
-          "id": 1,
-          "name": "Писхолог",
-          "calendarID": "6ogmjjrvnn9c7qjco3pbvnck3s@group.calendar.google.com",
-          "services": {
-            "1": {
-              "name": "Поговорим",
-              "duration": 1
             },
-            "2": {
-              "name": "Будем рисуем",
-              "duration": 2
-            }
-          }
-        }
-      },
-      "SUPERUSERS": [
-        921615186
-      ],
-      "BANNEDUSERS": []
-    }
-  },
-  "18.07.2021 20:35:15": {
-    "bot_data": {
-      "timezone": "3",
-      "info": {
-        "description": "Я очень известный кто-то приходите ко мне",
-        "number": "80000000000",
-        "address": "Москва, ул. Пушкина"
-      },
-      "users": {
-        "921615186": {
-          "id": 921615186,
-          "name": "Mikhail",
-          "surname": "Nedosekin",
-          "phone": "79161951700",
-          "events": [
             {
               "user_id": 921615186,
-              "registration_time": "18.07.2021 23:35:10",
-              "start_time": "21.07.2021 10:00:00",
-              "end_time": "21.07.2021 11:00:00",
+              "registration_time": "19.07.2021 09:31:43",
+              "start_time": "20.07.2021 10:00:00",
+              "end_time": "20.07.2021 11:00:00",
               "master": 1,
               "has_notified": false,
               "service": {
@@ -128,7 +39,7 @@
           ],
           "is_admin": true,
           "is_banned": false,
-          "registration_time": "23:34 18.07.2021"
+          "registration_time": "09:31 19.07.2021"
         }
       },
       "feedbacks": {},
