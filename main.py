@@ -1157,7 +1157,9 @@ def data_clear(context, update=''):
     for id in context.bot_data['users'].keys():
         for event in context.bot_data['users'][id].events:
             valid += 1
-            if event.end_time < datetime.datetime.now(tz=context.bot_data['tz']):
+            if event.end_time < datetime.datetime.strptime(
+                    datetime.datetime.now(tz=context.bot_data['tz']).strftime('%Y-%m-%d %H:%M:%S'),
+                    '%Y-%m-%d %H:%M:%S'):
                 counter += 1
                 del context.bot_data['users'][id].events[context.bot_data['users'][id].events.index(event)]
     txt += '{} posts has deleted.\n'.format(counter)
@@ -1193,7 +1195,7 @@ def nex(update, context):
 
 
 def feedback(update, context):
-    text = 'Напишите ваши впечатления, после отпрваки отзыв будет отмечен в нашей базе.'
+    text = 'Напишите ваши впечатления, после отправки отзыв будет отмечен в нашей базе.'
     context.chat_data['feedback'] = True
     context.chat_data['sure'] = False
     context.chat_data['change_phone'] = False
