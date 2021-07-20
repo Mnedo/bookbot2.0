@@ -1,3 +1,4 @@
+from requests import get
 from telegram import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from telegram.ext import CommandHandler, Updater, MessageHandler, Filters
 import datetime
@@ -95,6 +96,7 @@ def start(update, context):
         context.chat_data['change_phone'] = False
         context.chat_data['book'] = False
         context.chat_data['app'] = False
+        context.chat_data['file'] = False
         context.chat_data['keyboard'].reset()
         context.chat_data['keyboard'].create('start')
         reply_keyboard = context.chat_data['keyboard'].keyboard
@@ -112,27 +114,55 @@ def start(update, context):
 def makemigration(update, context):
     global master, SUPERUSERS, BANNEDUSERS
 
-    data = json.load(open('migrations.json'))
-    dct = {}
-    users = {}
-    masters = {}
-    for key in master:
-        masters[key] = dict(master[key])
-    for user_id in context.bot_data['users']:
-        users[user_id] = dict(context.bot_data['users'][user_id])
-    bot_data = {'timezone': str(context.bot_data['tz_int']),
-                'info': context.bot_data['info'], 'users': users, 'feedbacks': context.bot_data['feedbacks'],
-                'masters': masters, 'SUPERUSERS': SUPERUSERS, 'BANNEDUSERS': BANNEDUSERS}
-    dct['bot_data'] = bot_data
-    data[datetime.datetime.utcnow().strftime('%d.%m.%Y %H:%M:%S')] = dct
-    with open('migrations.json', 'w') as file:
-        json.dump(data, file, ensure_ascii=False,
-                  indent=2, sort_keys=False)
-    file.close()
-    context.bot.send_message(text='Миграция успешно выполнена. Ознакомьтесь с миграциями.',
-                             chat_id=update.message.chat_id)
-    context.bot.send_document(chat_id=update.message.chat_id, document=open('migrations.json', 'rb'),
-                              filename='migrations.json')
+    try:
+        if context.chat_data['keyboard'].is_admin(update.message.chat_id):
+            if context.args:
+                flag = context.args[0]
+                if flag == '-f':
+                    context.chat_data['file'] = True
+                    context.bot.send_message(text='В ожидании json файла.',
+                                             chat_id=update.message.chat_id)
+                elif flag == '-clear':
+                    data = json.load(open('migrations.json'))
+                    data = {}
+                    with open('migrations.json', 'w') as file:
+                        json.dump(data, file, ensure_ascii=False,
+                                  indent=2, sort_keys=False)
+                        file.close()
+                    context.bot.send_message(text='База данных очищена, приятной модерации.',
+                                             chat_id=update.message.chat_id)
+                else:
+                    context.bot.send_message(text='Неизвестный флаг. Ознакомьтесь с документацией.',
+                                             chat_id=update.message.chat_id)
+            else:
+                data = json.load(open('migrations.json'))
+                dct = {}
+                users = {}
+                masters = {}
+                for key in master:
+                    masters[key] = dict(master[key])
+                for user_id in context.bot_data['users']:
+                    users[user_id] = dict(context.bot_data['users'][user_id])
+                bot_data = {'timezone': str(context.bot_data['tz_int']),
+                            'info': context.bot_data['info'], 'users': users,
+                            'feedbacks': context.bot_data['feedbacks'],
+                            'masters': masters, 'SUPERUSERS': SUPERUSERS, 'BANNEDUSERS': BANNEDUSERS}
+                dct['bot_data'] = bot_data
+                data[datetime.datetime.utcnow().strftime('%d.%m.%Y %H:%M:%S')] = dct
+                with open('migrations.json', 'w') as file:
+                    json.dump(data, file, ensure_ascii=False,
+                              indent=2, sort_keys=False)
+                file.close()
+                context.bot.send_message(text='Миграция успешно выполнена. Ознакомьтесь с миграциями.',
+                                         chat_id=update.message.chat_id)
+                context.bot.send_document(chat_id=update.message.chat_id, document=open('migrations.json', 'rb'),
+                                          filename='migrations.json')
+        else:
+            raise AccessError
+    except AccessError:
+        context.bot.send_message(
+            text='Ошибка доступа. У вас недостаточно привелегий.',
+            chat_id=update.message.chat_id)
 
 
 def applymigration(update, context):
@@ -168,7 +198,7 @@ def applymigration(update, context):
                     master[len(master) + 1] = mt
             for user_id in dt['users']:
                 if int(user_id) not in context.bot_data['users'].keys():
-                    user_data = dt['users'][int(user_id)]
+                    user_data = dt['users'][user_id]
                     events = []
                     if user_data['events']:
                         for el in user_data['events']:
@@ -186,8 +216,8 @@ def applymigration(update, context):
                     user.is_banned = user_data['is_banned']
                     user.phone = user_data['phone']
                     user.events = events
-                    user.reg_time = user_data['registration_time']
-                    context.bot_data['users'][user_id] = user
+                    user.reg_time = datetime.datetime.strptime(user_data['registration_time'], '%H:%M %d.%m.%Y')
+                    context.bot_data['users'][int(user_id)] = user
                 else:
                     user_data = dt['users'][user_id]
                     user = context.chat_data['user']
@@ -701,6 +731,10 @@ def admin_info(update, context):
     /del_master <master_id> - удаление мастера из системы
     /add_service <master_id> <service_name> <service_duration> - добавление услуги в систему 
     /del_service <master_id> <service_id> - удаление услуги из системы
+    /makemigration - собирает версию конфигурации системы в виде файла .json
+        /makemigration -f - позволяет загрузить миграцию в систему
+        /makemigration -clear - очищает систему от версий 
+    /applymigration <ID> - применяет версию к системе
     /instructions - получение инструкций по настройке системы
     /data_clear - очистка базы данных от записей, которые прошли по времени
         примечание:
@@ -1043,7 +1077,7 @@ def send_feedbacks(update, context):
                 for key in context.bot_data['feedbacks']:
                     for post in context.bot_data['feedbacks'][key]:
                         text += post + '\n'
-                    text += str(context.chat_data['user']) + '\n\n'
+                    text += str(context.bot_data['users'][key]) + '\n\n'
             else:
                 text = 'Отзывы отсутствуют'
             context.bot.send_message(text=text, chat_id=update.message.chat_id)
@@ -1241,6 +1275,22 @@ def get_help(update, context):
     context.bot.send_contact(update.message.chat_id, phone, first_name, last_name)
 
 
+def doc(update, context):
+    if context.chat_data['file']:
+        context.chat_data['file'] = False
+        file_info = context.bot.get_file(update.message.document.file_id)
+        file = get(file_info.file_path).json()
+        try:
+            for key in file.keys:
+                datetime.datetime.strptime(key, '%d.%m.%Y %H:%M:%S')
+                data = json.load(open('migrations.json'))
+                data[key] = file[key]
+            file.close()
+        except ValueError:
+            pass
+        context.bot.send_message(text='text', chat_id=update.message.chat_id)
+
+
 ch = EditCommandHandler()
 ch.extra_handler(handler)
 dp = updater.dispatcher
@@ -1316,6 +1366,7 @@ ch.register("Контакты", contacts)
 dp.add_handler(CommandHandler("contacts", contacts, pass_chat_data=True))
 ch.register("Личный кабинет", account)
 dp.add_handler(CommandHandler("admin_panel", admin, pass_chat_data=True))
+dp.add_handler(MessageHandler(Filters.document.file_extension("json"), doc, pass_chat_data=True))
 dp.add_handler(MessageHandler(Filters.contact, share_contact, pass_chat_data=True))
 dp.add_handler(MessageHandler(Filters.text, ch, pass_chat_data=True, pass_job_queue=True))
 
