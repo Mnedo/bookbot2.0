@@ -258,6 +258,7 @@ class Buttons:
                 self.keyboard.append(['/makemigration', '/applymigration'])
                 self.keyboard.append(['/data_clear', '/create_work_week'])
                 self.keyboard.append(['/get_feedbacks'])
+                self.keyboard.append(['/system'])
         else:
             self.keyboard.append(['/Главное меню'])
 

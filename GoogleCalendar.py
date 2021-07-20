@@ -97,25 +97,24 @@ class GoogleCalendar(object):
         eid = events_result.get('items', [])[0].get('id')
         e = self.service.events().delete(calendarId=calendarid, eventId=eid).execute()
 
-    def get_events_list(self, timeutc):
-        now = timeutc.isoformat() + 'Z'
-
-        print('Getting the upcoming 10 events')
-        events_result = self.service.events().list(calendarId=self.calendarId,
-                                                   timeMin=now,
-                                                   maxResults=10, singleEvents=True,
+    def get_events_list(self, date, calendarId):
+        k = datetime.datetime.strptime(date.strftime('%d-%m-%Y'), '%d-%m-%Y')
+        now = k.isoformat() + 'Z'
+        k += datetime.timedelta(hours=23, minutes=59, seconds=59, milliseconds=59, microseconds=59)
+        nowd = k.isoformat() + 'Z'
+        events_result = self.service.events().list(calendarId=calendarId,
+                                                   timeMin=now, timeMax=nowd,
+                                                   maxResults=24, singleEvents=True,
                                                    orderBy='startTime').execute()
         events = events_result.get('items', [])
-
-        if not events:
-            print('No upcoming events found.')
-        res = {}
+        counter = 0
+        all = 0
         for event in events:
-            start = event['start'].get('dateTime', event['start'].get('date'))
-            end = event['start'].get('dateTime', event['end'].get('date'))
-            name = start + ' - ' + end
-            res[name] = event.get('id')
-        return res
+            if event['summary'] not in day:
+                if 'Сделано в telegram' in event['description']:
+                    counter += 1
+                all += 1
+        return [counter, all]
 
     def is_valid_day(self, dttm, calendarid):
         global day

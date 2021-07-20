@@ -1,3 +1,5 @@
+import os
+
 from requests import get
 from telegram import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from telegram.ext import CommandHandler, Updater, MessageHandler, Filters
@@ -58,7 +60,11 @@ def start(update, context):
             if 'users' not in context.bot_data.keys():
                 context.bot_data['tz'] = datetime.timezone(datetime.timedelta(hours=3))
                 context.bot_data['tz_int'] = 3
-                context.job_queue.run_monthly(data_clear, when=datetime.time(12), day=19, context=context)
+                context.bot_data['booked'] = 0
+                context.bot_data['all_books'] = 0
+                context.job_queue.run_monthly(data_clear, when=datetime.time(9), day=21, context=context)
+                context.job_queue.run_daily(analyze, time=datetime.time(13, 23), context=context)
+                # context.job_queue.run_daily(analyze, time=datetime.time(23, 30), context=context)
                 context.bot_data['users'] = {context.chat_data['user'].id: context.chat_data['user']}
             else:
                 if context.chat_data['user'].id not in context.bot_data['users'].keys():
@@ -107,10 +113,23 @@ def start(update, context):
         context.bot.send_message(text=text, chat_id=update.message.chat_id, reply_markup=markup)
     except AccessError:
         pass
-    except Exception:
+    except Exception as e:
+        print(e)
         context.bot.send_message(
             text='Произошла ошибка, пропишите /start для перезапуска или /manager для связи с менеджером',
             chat_id=update.message.chat_id)
+
+
+def analyze(context):
+    global master
+
+    ids = []
+    for key in master:
+        ids.append(master[key].calendarId)
+    for id in ids:
+        res = calendar.get_events_list(datetime.datetime.now(tz=context.bot_data['tz']), id)
+        context.bot_data['booked'] += res[0]
+        context.bot_data['all_books'] += res[1]
 
 
 def makemigration(update, context):
@@ -763,6 +782,51 @@ def admin_info(update, context):
             chat_id=update.message.chat_id)
 
 
+def human_read_format(size):
+    if size < 1024:
+        return str(size) + 'Б'
+    elif 1024 <= size < 1024 * 1024:
+        return str(round(size / 1024)) + 'КБ'
+    elif 1024 * 1024 <= size < 1024 * 1024 * 1024:
+        return str(round(size / 1024 ** 2)) + 'МБ'
+    elif 1024 * 1024 * 1024 <= size < 1024 * 1024 * 1024 * 1024:
+        return str(round(size / 1024 ** 3)) + 'ГБ'
+
+
+def analize_files(name):
+    size = 0
+    if os.path.isfile(name):
+        size += os.path.getsize(name)
+    else:
+        for elem in os.listdir(name):
+            elem = os.path.join(name, elem)
+            if os.path.isfile(elem):
+                size += os.path.getsize(elem)
+            elif os.path.isdir(elem):
+                size += analize_files(elem)
+    return size
+
+
+def system(update, context):
+    try:
+        if context.chat_data['keyboard'].is_admin(update.message.chat_id):
+            txt = 'Статус системы:\n\n'
+            size = 0
+            for el in os.listdir():
+                size += analize_files(el)
+            txt += 'Размер системы: {}\n'.format(human_read_format(size))
+            txt += 'Размер мигрцаий: {}\n'.format(human_read_format(analize_files('migrations.json')))
+            txt += '{} - количество пользователей\n'.format(len(context.bot_data['users']))
+            txt += '{}/{} записей были сделаны ботом.'.format(context.bot_data['booked'], context.bot_data['all_books'])
+            context.bot.send_message(text=txt, chat_id=update.message.chat_id)
+        else:
+            context.bot.send_message(text='Не достаточно привелегий.', chat_id=update.message.chat_id)
+    except Exception:
+        context.bot.send_message(
+            text='Произошла ошибка, попробуйте ещё раз. Если ошибка повторится, введите /start \nВы можете связаться с менеджером по команде /manager',
+            chat_id=update.message.chat_id)
+
+
 def user_info(update, context):
     try:
         if context.chat_data['keyboard'].is_admin(update.message.chat_id):
@@ -1383,7 +1447,7 @@ dp.add_handler(CommandHandler("get_feedbacks", send_feedbacks, pass_chat_data=Tr
 dp.add_handler(CommandHandler("add_superuser", add_superuser, pass_chat_data=True, pass_args=True))
 
 dp.add_handler(CommandHandler("del_superuser", del_superuser, pass_chat_data=True, pass_args=True))
-
+dp.add_handler(CommandHandler("system", system, pass_chat_data=True))
 dp.add_handler(CommandHandler("add_master", add_master, pass_chat_data=True, pass_args=True))
 dp.add_handler(CommandHandler("del_master", del_master, pass_chat_data=True, pass_args=True))
 dp.add_handler(CommandHandler("add_service", add_service, pass_chat_data=True, pass_args=True))
