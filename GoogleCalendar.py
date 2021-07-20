@@ -12,8 +12,9 @@ settings = open('setup.json', encoding='utf-8')
 data = json.load(settings)
 SERVICE_ACCOUNT_FILE = data['SERVICE_ACCOUNT_FILE']
 day = [data['START_DAY'], data['END_DAY']]
+start_time = data['START_TIME']
+end_time = data['END_TIME']
 settings.close()
-
 
 
 class GoogleCalendar(object):
@@ -36,9 +37,10 @@ class GoogleCalendar(object):
             st = '0' + str(self.tzn)
         return st
 
-    def book(self, start_time, end_time, info, ev):
+    def book(self, start_time, end_time, info, ev, calendarid):
         start_time = start_time.isoformat() + '+{}:00'.format(self.tz_str())
         end_time = end_time.isoformat() + '+{}:00'.format(self.tz_str())
+        info += '\nСделано в telegram'
         event = {
             'summary': ev.service_id,
             'description': info,
@@ -50,56 +52,50 @@ class GoogleCalendar(object):
             },
             'colorId': '6'
         }
-        e = self.service.events().insert(calendarId=self.calendarId,
+        e = self.service.events().insert(calendarId=calendarid,
                                          body=event).execute()
 
     # создание словаря с информацией о событии
-    def create_event(self, starttime, endtime):
+    def create_work_day(self, starttime, endtime, calendarID):
+        global day
         # 2021-07-03T03:00:00+03:00
         # 2021-07-03T05:00:00+03:00
-        event = {
-            'summary': 'Свободно',
-            'description': 'На этот сеанс ещё никто не регистрировался',
+        event_start = {
+            'summary': day[0],
+            'description': 'Сделано в telegram',
             'start': {
-                'dateTime': starttime,
+                'dateTime': (starttime - datetime.timedelta(hours=1)).isoformat() + '+0{}:00'.format(int(self.tzn)),
             },
             'end': {
-                'dateTime': endtime,
-            },
-            'colorId': '1'
-        }
-        e = self.service.events().insert(calendarId=self.calendarId,
-                                         body=event).execute()
-        return e.get('id')
-
-    # вывод списка из десяти предстоящих событий
-    def update_event(self, starttime, endtime, info):
-        events_result = self.service.events().list(calendarId=self.calendarId,
-                                                   timeMin=starttime,
-                                                   maxResults=10, singleEvents=True,
-                                                   orderBy='startTime').execute()
-        eid = events_result.get('items', [])[0].get('id')
-        e = self.service.events().update(calendarId=self.calendarId, eventId=eid, body={
-            'summary': 'Занято',
-            'description': info,
-            'colorId': '6',
-            'start': {
-                'dateTime': starttime,
-            },
-            'end': {
-                'dateTime': endtime,
+                'dateTime': starttime.isoformat() + '+0{}:00'.format(int(self.tzn)),
             }
-        }).execute()
+        }
+        event_end = {
+            'summary': day[1],
+            'description': 'Сделано в telegram',
+            'start': {
+                'dateTime': endtime.isoformat() + '+0{}:00'.format(int(self.tzn)),
+            },
+            'end': {
+                'dateTime': (endtime + datetime.timedelta(hours=1)).isoformat() + '+0{}:00'.format(int(self.tzn)),
+            }
+        }
+        es = self.service.events().insert(calendarId=calendarID,
+                                          body=event_start).execute()
+        ee = self.service.events().insert(calendarId=calendarID,
+                                          body=event_end).execute()
+        ids = [es.get('id'), ee.get('id')]
+        return ids
 
-    def sign_out(self, dtm_start, dtm_end):
+    def sign_out(self, dtm_start, dtm_end, calendarid):
         dtm_start = dtm_start.isoformat() + '+{}:00'.format(self.tz_str())
         dtm_end = dtm_end.isoformat() + '+{}:00'.format(self.tz_str())
-        events_result = self.service.events().list(calendarId=self.calendarId,
+        events_result = self.service.events().list(calendarId=calendarid,
                                                    timeMin=dtm_start, timeMax=dtm_end,
                                                    maxResults=10, singleEvents=True,
                                                    orderBy='startTime').execute()
         eid = events_result.get('items', [])[0].get('id')
-        e = self.service.events().delete(calendarId=self.calendarId, eventId=eid).execute()
+        e = self.service.events().delete(calendarId=calendarid, eventId=eid).execute()
 
     def get_events_list(self, timeutc):
         now = timeutc.isoformat() + 'Z'
@@ -121,7 +117,7 @@ class GoogleCalendar(object):
             res[name] = event.get('id')
         return res
 
-    def is_valid_day(self, dttm):
+    def is_valid_day(self, dttm, calendarid):
         global day
 
         if dttm.date().strftime('%d.%m') == datetime.datetime.now(tz=self.tz).strftime('%d.%m'):
@@ -131,10 +127,10 @@ class GoogleCalendar(object):
             now += 'Z'
         else:
             nows = datetime.datetime.strptime(dttm.strftime('%Y-%m-%d'), '%Y-%m-%d').isoformat().split('T')[0]
-            now = nows + 'T{}:00:00.000000Z'.format('06')
+            now = nows + 'T{}:00:00.000000Z'.format('02')
             nowd = nows + 'T{}:00:00.000000Z'.format(
                 str(self.tzn + 20) if self.tzn + 20 < 24 else '23')
-        events_result = self.service.events().list(calendarId=self.calendarId,
+        events_result = self.service.events().list(calendarId=calendarid,
                                                    timeMin=now, timeMax=nowd,
                                                    maxResults=20, singleEvents=True,
                                                    orderBy='startTime').execute()
@@ -151,7 +147,7 @@ class GoogleCalendar(object):
                 return True
             return False
 
-    def valid_time(self, dttm):
+    def valid_time(self, dttm, calendarid):
         global day
 
         if dttm.date() == datetime.datetime.now(tz=self.tz).date():
@@ -162,7 +158,7 @@ class GoogleCalendar(object):
             now = dttm.isoformat() + 'Z'
             nowd = dttm + datetime.timedelta(days=1)
             nowd = nowd.isoformat() + 'Z'
-        events_result = self.service.events().list(calendarId=self.calendarId,
+        events_result = self.service.events().list(calendarId=calendarid,
                                                    timeMin=now, timeMax=nowd,
                                                    maxResults=20, singleEvents=True,
                                                    orderBy='startTime').execute()
@@ -189,20 +185,3 @@ class GoogleCalendar(object):
         res.append(datetime.datetime.strptime(end_time, '%Y-%m-%dT%H:%M:%S+03:00'))
         res.append(exeptions)
         return res
-
-
-"""
-calendar = GoogleCalendar()
-
-lst_id = []
-for i in range(7):
-    for j in range(10):
-        if i < 3:
-            start = '2021-07-{}T{}:00:00+03:00'.format(17 + i, 10 + j)
-            end = '2021-07-{}T{}:00:00+03:00'.format(17 + i, 11 + j)
-        lst_id.append(calendar.create_event(start, end))
-
-# print(calendar.get_events_list(datetime.datetime.utcnow()))
-# c = input()
-# calendar.update_event(event, c)
-#"""

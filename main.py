@@ -33,6 +33,8 @@ BANNEDUSERS = data['BANNEDUSERS']
 phone = data['MANAGER']['phone']
 first_name = data['MANAGER']['first_name']
 last_name = data['MANAGER']['last_name']
+start_time = data['START_TIME']
+end_time = data['END_TIME']
 settings.close()
 calendar = GoogleCalendar()
 
@@ -370,7 +372,8 @@ def handler(update, context):
                 )
                 time = event.start_time
                 timeend = event.end_time
-                calendar.book(time, timeend, context.chat_data['user'].book_info(event), event)
+                calendar.book(time, timeend, context.chat_data['user'].book_info(event), event,
+                              context.chat_data['keyboard'].calendarId)
                 reply_keyboard = [['/Главное меню']]
                 markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=True)
                 text = 'Мы будем вас ждать {}!'.format(str(event))
@@ -479,7 +482,7 @@ def handler(update, context):
     elif not context.chat_data['keyboard'].master_id and context.chat_data['app']:
         for key in master.keys():
             if master[key].name == update.message.text:
-                calendar.calendarId = master[key].calendarId
+                context.chat_data['keyboard'].calendarId = master[key].calendarId
                 context.chat_data['keyboard'].master_id = key
                 break
         if context.chat_data['keyboard'].master_id:
@@ -616,7 +619,7 @@ def variant(update, context):
                 master_f = master[el.master_id]
                 del context.chat_data['user'].events[context.chat_data['user'].events.index(el)]
                 break
-        context.chat_data['keyboard'].calendar.calendarId = master_f.calendarId
+        context.chat_data['keyboard'].calendarId = master_f.calendarId
         context.chat_data['keyboard'].sign_out(dtm_start, dtm_end)
         current_jobs = context.job_queue.get_jobs_by_name(str(update.message.chat_id) + str(el))
         for job in current_jobs:
@@ -1291,6 +1294,39 @@ def doc(update, context):
         context.bot.send_message(text='text', chat_id=update.message.chat_id)
 
 
+def create_work_week(update, context):
+    global calendar
+
+    try:
+        if context.chat_data['keyboard'].is_admin(update.message.chat_id):
+            start_date = datetime.datetime.strptime(context.args[0], '%d.%m.%Y')
+            day = int(context.args[1])
+            calendarId = context.args[2]
+            for d in range(day):
+                calendar.create_work_day(start_date + datetime.timedelta(hours=start_time),
+                                         start_date + datetime.timedelta(hours=end_time), calendarId)
+                start_date += datetime.timedelta(days=1)
+
+            context.bot.send_message(
+                text='Успешно создано.',
+                chat_id=update.message.chat_id)
+        else:
+            raise AccessError
+    except AccessError:
+        context.bot.send_message(
+            text='Ошибка доступа. У вас недостаточно привелегий.',
+            chat_id=update.message.chat_id)
+    except (IndexError, ValueError):
+        context.bot.send_message(
+            text='Использование: /create_work_week <start_date> <days> <calendarId>\nФормат start_date: день.месяц.год\ndays - количество дней',
+            chat_id=update.message.chat_id)
+    except Exception as e:
+        print(e)
+        context.bot.send_message(
+            text='Произошла ошибка, попробуйте ещё раз. Если ошибка повторится, введите /start \nВы можете связаться с менеджером по команде /manager',
+            chat_id=update.message.chat_id)
+
+
 ch = EditCommandHandler()
 ch.extra_handler(handler)
 dp = updater.dispatcher
@@ -1338,6 +1374,7 @@ dp.add_handler(CommandHandler("set_contact_number", set_number, pass_chat_data=T
 dp.add_handler(CommandHandler("set_address", set_address, pass_chat_data=True, pass_args=True))
 
 dp.add_handler(CommandHandler("set_timezone", set_timezone, pass_chat_data=True, pass_args=True))
+dp.add_handler(CommandHandler("create_work_week", create_work_week, pass_chat_data=True, pass_args=True))
 
 dp.add_handler(CommandHandler("admin", admin_info, pass_chat_data=True))
 

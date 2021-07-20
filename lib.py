@@ -189,6 +189,7 @@ class Buttons:
         self.date = ''
         self.delta_time = ''
         self.time = ''
+        self.calendarId = ''
 
     def admin_panel(self, superusers):
         self.admin = superusers
@@ -239,10 +240,10 @@ class Buttons:
         return 'T'.join(str(self.timeutc).split()) + '+00:00'
 
     def is_valid_day(self, dttm):
-        return self.calendar.is_valid_day(dttm)
+        return self.calendar.is_valid_day(dttm, self.calendarId)
 
     def sign_out(self, dtm_start, dtm_end):
-        self.calendar.sign_out(dtm_start, dtm_end)
+        self.calendar.sign_out(dtm_start, dtm_end, self.calendarId)
 
     def create_admin(self, command):
         if self.is_admin(self.id):
@@ -255,7 +256,7 @@ class Buttons:
                 self.keyboard.append(['/add_master', '/del_master'])
                 self.keyboard.append(['/add_service', '/del_service'])
                 self.keyboard.append(['/makemigration', '/applymigration'])
-                self.keyboard.append(['/data_clear'])
+                self.keyboard.append(['/data_clear', '/create_work_week'])
                 self.keyboard.append(['/get_feedbacks'])
         else:
             self.keyboard.append(['/Главное меню'])
@@ -323,7 +324,7 @@ class Buttons:
                 self.keyboard.append(['/Статус', '/Оставить отзыв'])
                 self.keyboard.append(['/Сменить телефон', '/Главное меню'])
             elif command == 'registration':
-                sp = self.calendar.valid_time(self.date)
+                sp = self.calendar.valid_time(self.date, self.calendarId)
                 ex1 = []
                 for el in sp[2]:
                     sm = int(el[0].strftime('%H')) * 60 + int(el[0].strftime('%M'))
@@ -363,7 +364,7 @@ class Buttons:
                 self.keyboard.append(mainrow)
                 self.keyboard.append(skip)
             elif 'time' in command:
-                sp = self.calendar.valid_time(self.date)
+                sp = self.calendar.valid_time(self.date, self.calendarId)
                 ex1 = []
                 for el in sp[2]:
                     sm = int(el[0].strftime('%H')) * 60 + int(el[0].strftime('%M'))

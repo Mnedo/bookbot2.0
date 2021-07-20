@@ -20,5 +20,7 @@
     "first_name": "Менеджер",
     "last_name": "BookBot"
   },
-  "SERVICE_ACCOUNT_FILE": "innate-actor-318707-e125d41aabe1.json"
+  "SERVICE_ACCOUNT_FILE": "innate-actor-318707-e125d41aabe1.json",
+  "START_TIME": 9,
+  "END_TIME": 18
 }
