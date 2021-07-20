@@ -63,7 +63,7 @@ def start(update, context):
                 context.bot_data['booked'] = 0
                 context.bot_data['all_books'] = 0
                 context.job_queue.run_monthly(data_clear, when=datetime.time(9), day=21, context=context)
-                context.job_queue.run_daily(analyze, time=datetime.time(13, 23), context=context)
+                context.job_queue.run_daily(analyze, time=datetime.time(14, 20), context=context)
                 # context.job_queue.run_daily(analyze, time=datetime.time(23, 30), context=context)
                 context.bot_data['users'] = {context.chat_data['user'].id: context.chat_data['user']}
             else:

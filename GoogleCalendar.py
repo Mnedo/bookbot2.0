@@ -124,7 +124,9 @@ class GoogleCalendar(object):
             nowd = now.split('T')[0] + 'T{}:00:00.000000Z'.format(
                 str(self.tzn + 20) if self.tzn + 20 < 24 else '23')
             now += 'Z'
+            flag = True
         else:
+            flag = False
             nows = datetime.datetime.strptime(dttm.strftime('%Y-%m-%d'), '%Y-%m-%d').isoformat().split('T')[0]
             now = nows + 'T{}:00:00.000000Z'.format('02')
             nowd = nows + 'T{}:00:00.000000Z'.format(
@@ -150,8 +152,9 @@ class GoogleCalendar(object):
         global day
 
         if dttm.date() == datetime.datetime.now(tz=self.tz).date():
-            now = datetime.datetime.now(tz=self.tz).isoformat() + 'Z'
-            nowd = datetime.datetime.now(tz=self.tz) + datetime.timedelta(days=1)
+            st = datetime.datetime.now(tz=self.tz).isoformat().split('.')[0]
+            now = datetime.datetime.strptime(st, '%Y-%m-%dT%H:%M:%S').isoformat() + 'Z'
+            nowd = dttm + datetime.timedelta(hours=23, minutes=59, microseconds=59, milliseconds=59)
             nowd = nowd.isoformat() + 'Z'
         else:
             now = dttm.isoformat() + 'Z'
