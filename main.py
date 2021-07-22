@@ -111,6 +111,7 @@ def start(update, context):
         reply_keyboard = context.chat_data['keyboard'].keyboard
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=True,
                                      input_field_placeholder='Выберите действие из подсказок')
+        text += '\n' + str(dt)
         context.bot.send_message(text=text, chat_id=update.message.chat_id, reply_markup=markup)
     except AccessError:
         pass
