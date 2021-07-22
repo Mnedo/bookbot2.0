@@ -10,3 +10,5 @@ for f in files.split('\n'):
     repo.git.add(f)
 print(files)
 repo.git.commit('-m', 'test commit', author='Mnedo <Basecam@gmail.com>')
+origin = repo.remote(name='origin')
+origin.push()
