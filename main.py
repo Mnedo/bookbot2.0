@@ -39,7 +39,7 @@ start_time = data['START_TIME']
 end_time = data['END_TIME']
 settings.close()
 calendar = GoogleCalendar()
-
+dt = datetime.datetime.now()
 
 def start(update, context):
     global SUPERUSERS, calendar, BANNEDUSERS
@@ -58,6 +58,7 @@ def start(update, context):
             if context.chat_data['user'].id in BANNEDUSERS:
                 raise AccessError(context, update.message.chat_id)
             if 'users' not in context.bot_data.keys():
+                print(dt)
                 context.bot_data['tz'] = datetime.timezone(datetime.timedelta(hours=3))
                 context.bot_data['tz_int'] = 3
                 context.bot_data['booked'] = 0
