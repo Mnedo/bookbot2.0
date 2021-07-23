@@ -1,7 +1,10 @@
 import datetime
 import json
 
-from data.users import UserRes, Mas
+from data.events import EventRes
+from data.masters import MasterRes
+from data.services import ServiceRes
+from data.users import UserRes
 
 
 class AccessError(Exception):
@@ -13,7 +16,8 @@ class AccessError(Exception):
 
 
 class Event:
-    def __init__(self, reg_time, start_time, end_time, user_id, master_id, service_id, has_notified=False):
+    def __init__(self, reg_time, start_time, end_time, user_id, master_id, service_id, db_sess, has_notified=False):
+        self.id = len(db_sess.query(EventRes).all()) + 1
         self.reg_time = reg_time
         self.start_time = start_time
         self.end_time = end_time
@@ -21,7 +25,19 @@ class Event:
         self.master_id = master_id
         self.has_notified = has_notified
         self.service_id = service_id
+        self.event_id = ''
         self.format = '%Y-%m-%d %H:%M'
+        event = EventRes(
+            user_id=self.user_id,
+            master_id=self.master_id.id,
+            service_id=self.service_id.id,
+            has_notified=self.has_notified,
+            reg_time=self.reg_time,
+            start_time=self.start_time,
+            end_time=self.end_time
+        )
+        db_sess.add(event)
+        db_sess.commit()
 
     def __iter__(self):
         yield 'user_id', self.user_id
@@ -47,14 +63,20 @@ class Event:
         date = self.start_time.strftime('%d.%m.%Y')
         starttime = self.start_time.strftime('%H:%M')
         endtime = self.end_time.strftime('%H:%M')
-        txt = date + ' в ' + starttime + ' - ' + endtime + ' - ' + self.service_id
+        txt = date + ' в ' + starttime + ' - ' + endtime + ' - ' + self.service_id.servicename
         return txt
+
+    def set_eventid(self, id, db_sess):
+        self.event_id = id
+        user = db_sess.query(EventRes).filter(EventRes.id == self.id).first()
+        user.event_id = id
+        db_sess.commit()
 
 
 class User:
     def __init__(self, update, tz, tzn, db_sess):
-
-        self.id = update.message.chat.id
+        self.id = len(db_sess.query(UserRes).all()) + 1
+        self.user_id = update.message.chat.id
         self.name = update.message.chat.first_name
         self.surname = update.message.chat.last_name if update.message.chat.last_name else ''
         self.username = update.message.chat.username if update.message.chat.username else ''
@@ -67,7 +89,7 @@ class User:
         self.reg_time = datetime.datetime.strptime(datetime.datetime.now(tz=self.tz).strftime('%H:%M %d.%m.%Y'),
                                                    '%H:%M %d.%m.%Y')
         user = UserRes(
-            user_id=self.id,
+            user_id=self.user_id,
             name=self.name,
             surname=self.surname,
             user_name=self.username,
@@ -84,7 +106,7 @@ class User:
         events = []
         for event in self.events:
             events.append(dict(event))
-        yield 'id', self.id
+        yield 'id', self.user_id
         yield 'name', self.name
         yield 'surname', self.surname
         yield 'phone', self.phone
@@ -105,7 +127,7 @@ class User:
         self.tz = tz
         self.tzn = tzn
         self.reg_time -= datetime.timedelta(hours=ltzn) - datetime.timedelta(hours=tzn)
-        user = db_sess.query(UserRes).filter(UserRes.user_id == self.id).first()
+        user = db_sess.query(UserRes).filter(UserRes.user_id == self.user_id).first()
         user.tz = self.tz
         user.tzn = self.tzn
         user.reg_time = self.reg_time
@@ -114,7 +136,7 @@ class User:
             event.update(ltzn, tzn)
 
     def create_info(self, update, banned, admins, db_sess):
-        self.id = int(update['message']['chat']['id'])
+        self.user_id = int(update['message']['chat']['id'])
         try:
             self.name = update['message']['chat']['first_name']
             if not self.name:
@@ -133,12 +155,12 @@ class User:
                 self.nickname = ''
         except KeyError:
             self.nickname = ''
-        if self.id in banned:
+        if self.user_id in banned:
             self.is_banned = True
-        if self.id in admins:
+        if self.user_id in admins:
             self.is_admin = True
-        user = db_sess.query(UserRes).filter(UserRes.user_id == self.id).first()
-        user.user_id = self.id
+        user = db_sess.query(UserRes).filter(UserRes.user_id == self.user_id).first()
+        user.user_id = self.user_id
         user.name = self.name
         user.surname = self.surname
         user.user_name = self.username
@@ -146,14 +168,14 @@ class User:
         user.is_banned = self.is_banned
         user.phone = self.phone
         user.reg_time = self.reg_time
-        user.events = ';'.join(self.events)
+        user.events = ';'.join(list(map(lambda x: str(x.id), self.events)))
         db_sess.commit()
 
     def book_info(self, event):
         text = """{} {}
 Контактный номер: {}
 ID в системе: {}
-{}""".format(self.name, self.surname, self.phone, self.id, event.reg_time.strftime('%d.%m.%Y %H:%M'))
+{}""".format(self.name, self.surname, self.phone, self.user_id, event.reg_time.strftime('%d.%m.%Y %H:%M'))
         return text
 
     def __str__(self):
@@ -172,24 +194,52 @@ ID в системе: {}
 Дата регистрации: {}
 Статус: {}
 Контакт: {}
-Активные записи: {}""".format(self.id, self.name, self.surname, self.reg_time.strftime('%d.%m.%Y в %H:%M'), status,
+Активные записи: {}""".format(self.user_id, self.name, self.surname, self.reg_time.strftime('%d.%m.%Y в %H:%M'), status,
                               phone, posts)
         return text
 
     def add_event(self, event: Event, db_sess):
         self.events.append(event)
-        user = db_sess.query(UserRes).filter(UserRes.user_id == self.id).first()
-        user.events = ';'.join(self.events)
+        # if user.wvwnts
+        user = db_sess.query(UserRes).filter(UserRes.user_id == self.user_id).first()
+        ex = list(map(lambda x: str(x.id), self.events))
+        user.events = ';'.join(ex)
         db_sess.commit()
 
 
+class Service:
+    def __init__(self, service_name, db_sess, master, duration=1.0):
+        self.id = len(db_sess.query(ServiceRes).all()) + 1
+        self.master = master
+        self.service_name = service_name
+        self.duration = float(duration)
+        service = ServiceRes(
+            servicename=self.service_name,
+            duration=float(self.duration),
+            master_id=self.master.id
+        )
+        db_sess.add(service)
+        db_sess.commit()
+
+    def __str__(self):
+        return str(self.id)
+
+
 class Master:
-    def __init__(self, mastername, calendarId, id, db_sess, duration=1):
+    def __init__(self, mastername, calendarId, db_sess, duration=1):
+        self.id = len(db_sess.query(MasterRes).all()) + 1
         self.name = mastername
-        self.id = id
         self.calendarId = calendarId
         self.duration = duration
-        self.services = {}
+        self.services = []
+        master = MasterRes(
+            mastername=self.name,
+            calendarId=self.calendarId,
+            duration=float(self.duration),
+            services=';'.join(self.services)
+        )
+        db_sess.add(master)
+        db_sess.commit()
 
     def __eq__(self, other):
         if self.name == other.name and self.calendarId == other.calendarId and self.duration == other.duration:
@@ -207,8 +257,11 @@ class Master:
         yield 'calendarID', self.calendarId
         yield 'services', serv
 
-    def add_service(self, name, duration=1.0):
-        self.services[name] = duration
+    def add_service(self, service: Service, db_sess):
+        self.services.append(service)
+        master = db_sess.query(MasterRes).filter(MasterRes.id == self.id).first()
+        master.services = ';'.join(list(map(lambda x: str(x), self.services)))
+        db_sess.commit()
 
 
 class Buttons:
@@ -231,6 +284,7 @@ class Buttons:
         self.delta_time = ''
         self.time = ''
         self.calendarId = ''
+        self.db_sess = ''
 
     def admin_panel(self, superusers):
         self.admin = superusers
@@ -285,6 +339,12 @@ class Buttons:
 
     def sign_out(self, dtm_start, dtm_end):
         self.calendar.sign_out(dtm_start, dtm_end, self.calendarId)
+
+    def cancel(self, id, db_sess):
+        event = db_sess.query(EventRes).filter(EventRes.event_id == id).first()
+        db_sess.delete(event)
+        db_sess.commit()
+        self.calendar.cancel(self.calendarId, id)
 
     def create_admin(self, command):
         if self.is_admin(self.id):
@@ -374,7 +434,7 @@ class Buttons:
                     ex1.append([sm, em])
                 sttm = int(sp[0].strftime('%H')) * 60 + int(sp[0].strftime('%M'))
                 endtm = int(sp[1].strftime('%H')) * 60 + int(sp[1].strftime('%M'))
-                d = 60 * float(self.services[self.master_id].services[self.service_id])
+                d = 60 * float(self.service_id.duration)
                 d = int(d)
                 res = []
                 ex1 = list(map(lambda x: [x[0], x[1] + 1], ex1))
@@ -415,7 +475,7 @@ class Buttons:
                     ex1.append([sm, em])
                 sttm = int(sp[0].strftime('%H')) * 60 + int(sp[0].strftime('%M'))
                 endtm = int(sp[1].strftime('%H')) * 60 + int(sp[1].strftime('%M'))
-                d = 60 * float(self.services[self.master_id].services[self.service_id])
+                d = 60 * float(self.service_id.duration)
                 d = int(d)
                 res = []
                 ex1 = list(map(lambda x: [x[0], x[1] + 1], ex1))
@@ -466,17 +526,25 @@ class Buttons:
                 return text
             elif 'master' == command:
                 mainrow = []
-                for key in self.services.keys():
-                    mainrow.append(self.services[key].name)
+                for mst in self.services:
+                    mainrow.append(mst.name)
                 self.keyboard.append(mainrow)
                 self.keyboard.append(['/Главное меню'])
             elif 'service' == command:
                 mainrow = []
-                master = self.services[self.master_id]
-                for name in master.services:
-                    mainrow.append(name)
+                ftr = list(map(lambda x: int(x), ';'.join(list(map(lambda x: str(x.id), self.master_id.services))).split(';')))
+                svss = []
+                for id in ftr:
+                    qw = self.db_sess.query(ServiceRes).filter(ServiceRes.id == id).first()
+                    if qw:
+                        svss.append(qw)
+                for service in svss:
+                    mainrow.append(service.servicename)
                 self.keyboard.append(mainrow)
                 self.keyboard.append(['/Главное меню'])
 
     def reset(self):
         self.keyboard = []
+
+    def set(self, sess):
+        self.db_sess = sess

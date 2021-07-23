@@ -17,7 +17,7 @@ class EventRes(SqlAlchemyBase, UserMixin, SerializerMixin):
     reg_time = sqlalchemy.Column(sqlalchemy.DateTime)
     start_time = sqlalchemy.Column(sqlalchemy.DateTime)
     end_time = sqlalchemy.Column(sqlalchemy.DateTime)
-
+    event_id = sqlalchemy.Column(sqlalchemy.String)
     user = orm.relation('UserRes')
     master = orm.relation('MasterRes')
     service = orm.relation('ServiceRes')

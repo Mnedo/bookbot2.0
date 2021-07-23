@@ -7,8 +7,10 @@ import datetime
 import json
 from EditedClasses import EditCommandHandler
 from data import db_session
+from data.masters import MasterRes
+from data.services import ServiceRes
 from data.users import UserRes
-from lib import Buttons, AccessError, Master, Event, User
+from lib import Buttons, AccessError, Master, Event, User, Service
 from GoogleCalendar import GoogleCalendar
 
 settings = open('setup.json', encoding='utf-8')
@@ -41,9 +43,13 @@ settings.close()
 calendar = GoogleCalendar()
 db_session.global_init("database.db")
 db_sess = db_session.create_session()
+
+
+
+
 master = [Master('Писхолог', '6ogmjjrvnn9c7qjco3pbvnck3s@group.calendar.google.com', db_sess, 1)]
-master[0].add_service('Поговорим')
-master[0].add_service('Будем рисуем', 2)
+master[0].add_service(Service('Поговорим', db_sess, master[0]), db_sess)
+master[0].add_service(Service('Будем рисуем', db_sess, master[0], 2), db_sess)
 
 
 def start(update, context):
@@ -59,7 +65,9 @@ def start(update, context):
                     tz = context.bot_data['tz']
                     tzn = context.bot_data['tz_int']
                 context.chat_data['user'] = User(update, tz, tzn, db_sess)
-            if context.chat_data['user'].id in BANNEDUSERS:
+                context.chat_data['user'].create_info(update, BANNEDUSERS,
+                                                      SUPERUSERS, db_sess)
+            if context.chat_data['user'].user_id in BANNEDUSERS:
                 raise AccessError(context, update.message.chat_id)
             if 'users' not in context.bot_data.keys():
                 context.bot_data['tz'] = datetime.timezone(datetime.timedelta(hours=3))
@@ -85,7 +93,7 @@ def start(update, context):
             context.chat_data['keyboard'].service(master)
             context.chat_data['keyboard'].set_calendar(calendar)
             context.chat_data['keyboard'].set_tz(context.bot_data['tz'], context.bot_data['tz_int'])
-            if context.chat_data['user'].id in SUPERUSERS:
+            if context.chat_data['user'].user_id in SUPERUSERS:
                 context.chat_data['keyboard'].admin_panel(SUPERUSERS)
             context.chat_data['sure'] = False
             context.chat_data['feedback'] = False
@@ -129,7 +137,7 @@ def analyze(context):
 
     ids = []
     for key in master:
-        ids.append(master[key].calendarId)
+        ids.append(key.calendarId)
     for id in ids:
         res = calendar.get_events_list(datetime.datetime.now(tz=context.bot_data['tz']), id)
         context.bot_data['booked'] += res[0]
@@ -360,11 +368,9 @@ def handler(update, context):
         if update.message.text == 'Да':
             event = Event(datetime.datetime.now(tz=context.bot_data['tz']), context.chat_data['keyboard'].timedate,
                           context.chat_data['keyboard'].timedate + datetime.timedelta(
-                              minutes=int(60 * float(context.chat_data['keyboard'].services[
-                                                         context.chat_data['keyboard'].master_id].services[
-                                                         context.chat_data['keyboard'].service_id]))),
+                              minutes=int(60 * float(context.chat_data['keyboard'].service_id.duration))),
                           context.chat_data['user'].id, context.chat_data['keyboard'].master_id,
-                          context.chat_data['keyboard'].service_id)
+                          context.chat_data['keyboard'].service_id, db_sess)
             context.chat_data['user'].add_event(event, db_sess)
             context.chat_data['user'].create_info(update, BANNEDUSERS, SUPERUSERS, db_sess)
             chat_id = update.message.chat_id
@@ -403,8 +409,9 @@ def handler(update, context):
                 )
                 time = event.start_time
                 timeend = event.end_time
-                calendar.book(time, timeend, context.chat_data['user'].book_info(event), event,
-                              context.chat_data['keyboard'].calendarId, context.chat_data['user'])
+                ev_id = calendar.book(time, timeend, context.chat_data['user'].book_info(event), event,
+                                      context.chat_data['keyboard'].calendarId, context.chat_data['user'])
+                event.set_eventid(ev_id, db_sess)
                 reply_keyboard = [['/Главное меню']]
                 markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=True)
                 text = 'Мы будем вас ждать {}!'.format(str(event))
@@ -511,12 +518,13 @@ def handler(update, context):
         context.chat_data['feedback'] = False
         context.bot.send_message(text='Спасибо за отзыв!', chat_id=update.message.chat_id)
     elif not context.chat_data['keyboard'].master_id and context.chat_data['app']:
-        for key in master.keys():
-            if master[key].name == update.message.text:
-                context.chat_data['keyboard'].calendarId = master[key].calendarId
-                context.chat_data['keyboard'].master_id = key
+        for mst in master:
+            if mst.name == update.message.text:
+                context.chat_data['keyboard'].calendarId = mst.calendarId
+                context.chat_data['keyboard'].master_id = mst
                 break
         if context.chat_data['keyboard'].master_id:
+            context.chat_data['keyboard'].set(db_sess)
             context.chat_data['keyboard'].create('service')
             text = 'Выберите услугу'
             reply_keyboard = context.chat_data['keyboard'].keyboard
@@ -527,8 +535,14 @@ def handler(update, context):
                                      chat_id=update.message.chat_id)
     elif not context.chat_data['keyboard'].service_id and context.chat_data['app']:
         context.chat_data['book'] = False
-        for service in master[context.chat_data['keyboard'].master_id].services:
-            if service == update.message.text:
+        ftr = list(map(lambda x: int(x), ';'.join(list(map(lambda x: str(x.id), context.chat_data['keyboard'].master_id.services))).split(';')))
+        svss = []
+        for id in ftr:
+            qw = db_sess.query(ServiceRes).filter(ServiceRes.id == id).first()
+            if qw:
+                svss.append(qw)
+        for service in svss:
+            if service.servicename == update.message.text:
                 context.chat_data['keyboard'].service_id = service
         if context.chat_data['keyboard'].service_id:
             context.chat_data['keyboard'].create('appointment')
@@ -555,7 +569,9 @@ def feedback_note(context):
     service = job.name.split(' - ')[-1]
     mainrow = [['/Оставить отзыв'], ['/Главное меню']]
     markup = ReplyKeyboardMarkup(mainrow, one_time_keyboard=False, resize_keyboard=True)
-    context.bot.send_message(job.context, text='Вы были {} на приёме. Что скажите о своих впечатлениях? Как {}?'.format(date, service),
+    context.bot.send_message(job.context,
+                             text='Вы были {} на приёме. Что скажите о своих впечатлениях? Как {}?'.format(date,
+                                                                                                           service),
                              reply_markup=markup)
 
 
@@ -656,12 +672,13 @@ def variant(update, context):
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=True)
 
         for el in context.chat_data['user'].events:
-            if el.start_time == dtm_start and el.end_time == dtm_end and name == el.service_id:
-                master_f = master[el.master_id]
+            if el.start_time == dtm_start and el.end_time == dtm_end and name == el.service_id.servicename:
+                master_f = el.master_id
                 del context.chat_data['user'].events[context.chat_data['user'].events.index(el)]
                 break
         context.chat_data['keyboard'].calendarId = master_f.calendarId
-        context.chat_data['keyboard'].sign_out(dtm_start, dtm_end)
+        context.chat_data['keyboard'].cancel(el.event_id, db_sess)
+        # context.chat_data['keyboard'].sign_out(dtm_start, dtm_end)
         current_jobs = context.job_queue.get_jobs_by_name(str(update.message.chat_id) + str(el))
         for job in current_jobs:
             job.schedule_removal()
@@ -889,7 +906,8 @@ def add_master(update, context):
 
             master_calendarId = context.args[0]
             master_name = ' '.join(context.args[1:])
-            master[len(master) + 1] = Master(master_name, master_calendarId, len(master) + 1)
+            mst = Master(master_name, master_calendarId, db_sess)
+            master.append(mst)
             context.bot.send_message(
                 text='Мастер успешно добавлен, не забудьте о его услугах. /add_service - для инструкций.',
                 chat_id=update.message.chat_id)
@@ -914,7 +932,10 @@ def del_master(update, context):
 
     try:
         if context.chat_data['keyboard'].is_admin(update.message.chat_id):
-            id = context.args[0]
+            id = int(context.args[0])
+            mst = db_sess.query(MasterRes).filter(MasterRes.id == master[id].id).first()
+            db_sess.delete(mst)
+            db_sess.commit()
             del master[int(id)]
             context.bot.send_message(
                 text='Мастер успешно удалён.',
@@ -927,8 +948,10 @@ def del_master(update, context):
             chat_id=update.message.chat_id)
     except (IndexError, ValueError):
         ids = ''
-        for mst in master.keys():
-            ids += '{} - {}\n'.format(mst, master[mst].name)
+        i = 0
+        for mst in master:
+            ids += '{} - {}\n'.format(i, mst.name)
+            i += 1
         context.bot.send_message(
             text='Использование: /del_master <master_id>\nВыберите id доступного мастера:\n{}'.format(ids),
             chat_id=update.message.chat_id)
@@ -946,7 +969,7 @@ def add_service(update, context):
             id = int(context.args[0])
             duration = context.args[1]
             name = ' '.join(context.args[2:])
-            master[id].add_service(name, duration)
+            master[id].add_service(Service(name, db_sess, master[id], duration), db_sess)
             context.bot.send_message(
                 text='Услуга успешно добавлена.',
                 chat_id=update.message.chat_id)
@@ -958,13 +981,16 @@ def add_service(update, context):
             chat_id=update.message.chat_id)
     except (IndexError, ValueError):
         ids = ''
-        for mst in master.keys():
-            ids += '{} - {}\n'.format(mst, master[mst].name)
+        i = 0
+        for mst in master:
+            ids += '{} - {}\n'.format(i, mst.name)
+            i += 1
         context.bot.send_message(
             text='Использование: /add_service <master_id> <service_duration> <service_name>\nВыберите id доступного мастера:\n{}'.format(
                 ids),
             chat_id=update.message.chat_id)
-    except Exception:
+    except Exception as e:
+        print(e)
         context.bot.send_message(
             text='Произошла ошибка, попробуйте ещё раз. Возможно, проблема в Id. Если ошибка повторится, введите /start ',
             chat_id=update.message.chat_id)
@@ -977,14 +1003,12 @@ def del_service(update, context):
         if context.chat_data['keyboard'].is_admin(update.message.chat_id):
             master_id = int(context.args[0])
             service_id = int(context.args[1])
-            for mst in master.keys():
-                i = 0
-                for serv in master[mst].services.keys():
-                    if i == service_id and mst == master_id:
-                        service_id = serv
-                        break
-                    i += 1
-            del master[master_id].services[service_id]
+            mst = master[master_id]
+            service = mst.services[service_id]
+            sv = db_sess.query(ServiceRes).filter(ServiceRes.id == service.id).first()
+            db_sess.delete(sv)
+            db_sess.commit()
+            del mst.services[mst.services.index(service)]
             context.bot.send_message(
                 text='Услуга успешно удалена.',
                 chat_id=update.message.chat_id)
@@ -996,13 +1020,15 @@ def del_service(update, context):
             chat_id=update.message.chat_id)
     except (IndexError, ValueError):
         ids = ''
-        for mst in master.keys():
-            ids += '{} - {}\n'.format(mst, master[mst].name)
-            if master[mst].services:
+        j = 0
+        for mst in master:
+            ids += '{} - {}\n'.format(j, mst.name)
+            if mst.services:
                 i = 0
-                for serv in master[mst].services.keys():
-                    ids += '   {} - {}\n'.format(str(i), serv)
+                for serv in mst.services:
+                    ids += '   {} - {}\n'.format(str(i), serv.service_name)
                     i += 1
+                j += 1
         context.bot.send_message(
             text='Использование: /del_service <master_id> <service_id>\nВыберите id доступной услуги и мастера:\n{}'.format(
                 ids),
@@ -1076,7 +1102,8 @@ def set_timezone(update, context):
         if context.chat_data['keyboard'].is_admin(update.message.chat_id):
             context.bot_data['tz'] = datetime.timezone(datetime.timedelta(hours=int(timezone)))
             context.bot_data['tz_int'] = int(timezone)
-            context.bot_data['users'][update.message.chat_id].set_tz(context.bot_data['tz'], context.bot_data['tz_int'], db_sess)
+            context.bot_data['users'][update.message.chat_id].set_tz(context.bot_data['tz'], context.bot_data['tz_int'],
+                                                                     db_sess)
             context.bot_data['users'][update.message.chat_id].create_info(update, BANNEDUSERS, SUPERUSERS, db_sess)
             context.chat_data['keyboard'].set_tz(context.bot_data['tz'], context.bot_data['tz_int'])
             context.bot.send_message(
@@ -1187,7 +1214,10 @@ def send_feedbacks(update, context):
 def set_description(update, context):
     try:
         if context.chat_data['keyboard'].is_admin(update.message.chat_id):
-            mes = ' '.join(context.args)
+            if context.args:
+                mes = ' '.join(context.args)
+            else:
+                raise ValueError
             text = 'Описание успешно обновлено.'
             context.bot_data['info']['description'] = mes
             context.bot.send_message(text=text, chat_id=update.message.chat_id)
@@ -1238,7 +1268,10 @@ def set_number(update, context):
 def set_address(update, context):
     try:
         if context.chat_data['keyboard'].is_admin(update.message.chat_id):
-            mes = ' '.join(context.args)
+            if context.args:
+                mes = ' '.join(context.args)
+            else:
+                raise ValueError
             context.bot_data['info']['address'] = mes
             text = 'Адрес успешно обновлён.'
             context.bot.send_message(text=text, chat_id=update.message.chat_id)

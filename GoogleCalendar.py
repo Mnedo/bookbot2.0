@@ -42,7 +42,7 @@ class GoogleCalendar(object):
         end_time = end_time.isoformat() + '+{}:00'.format(self.tz_str())
         info += '\nСделано в telegram'
         event = {
-            'summary': ev.service_id + ' | ' + str(user.get_sign()),
+            'summary': ev.service_id.servicename + ' | ' + str(user.get_sign()),
             'description': info,
             'start': {
                 'dateTime': start_time,
@@ -54,6 +54,7 @@ class GoogleCalendar(object):
         }
         e = self.service.events().insert(calendarId=calendarid,
                                          body=event).execute()
+        return e.get('id')
 
     # создание словаря с информацией о событии
     def create_work_day(self, starttime, endtime, calendarID):
@@ -95,6 +96,9 @@ class GoogleCalendar(object):
                                                    maxResults=10, singleEvents=True,
                                                    orderBy='startTime').execute()
         eid = events_result.get('items', [])[0].get('id')
+        e = self.service.events().delete(calendarId=calendarid, eventId=eid).execute()
+
+    def cancel(self, calendarid, eid):
         e = self.service.events().delete(calendarId=calendarid, eventId=eid).execute()
 
     def get_events_list(self, date, calendarId):
