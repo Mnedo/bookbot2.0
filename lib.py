@@ -1,7 +1,7 @@
 import datetime
 import json
 
-from data.users import UserRes
+from data.users import UserRes, Mas
 
 
 class AccessError(Exception):
@@ -80,7 +80,6 @@ class User:
         db_sess.add(user)
         db_sess.commit()
 
-
     def __iter__(self):
         events = []
         for event in self.events:
@@ -101,15 +100,20 @@ class User:
             txt = self.name
         return txt
 
-    def set_tz(self, tz, tzn):
+    def set_tz(self, tz, tzn, db_sess):
         ltzn = self.tzn
         self.tz = tz
         self.tzn = tzn
         self.reg_time -= datetime.timedelta(hours=ltzn) - datetime.timedelta(hours=tzn)
+        user = db_sess.query(UserRes).filter(UserRes.user_id == self.id).first()
+        user.tz = self.tz
+        user.tzn = self.tzn
+        user.reg_time = self.reg_time
+        db_sess.commit()
         for event in self.events:
             event.update(ltzn, tzn)
 
-    def create_info(self, update, banned, admins):
+    def create_info(self, update, banned, admins, db_sess):
         self.id = int(update['message']['chat']['id'])
         try:
             self.name = update['message']['chat']['first_name']
@@ -133,6 +137,17 @@ class User:
             self.is_banned = True
         if self.id in admins:
             self.is_admin = True
+        user = db_sess.query(UserRes).filter(UserRes.user_id == self.id).first()
+        user.user_id = self.id
+        user.name = self.name
+        user.surname = self.surname
+        user.user_name = self.username
+        user.is_admin = self.is_admin
+        user.is_banned = self.is_banned
+        user.phone = self.phone
+        user.reg_time = self.reg_time
+        user.events = ';'.join(self.events)
+        db_sess.commit()
 
     def book_info(self, event):
         text = """{} {}
@@ -161,12 +176,15 @@ ID в системе: {}
                               phone, posts)
         return text
 
-    def add_event(self, event: Event):
+    def add_event(self, event: Event, db_sess):
         self.events.append(event)
+        user = db_sess.query(UserRes).filter(UserRes.user_id == self.id).first()
+        user.events = ';'.join(self.events)
+        db_sess.commit()
 
 
 class Master:
-    def __init__(self, mastername, calendarId, id, duration=1):
+    def __init__(self, mastername, calendarId, id, db_sess, duration=1):
         self.name = mastername
         self.id = id
         self.calendarId = calendarId

@@ -28,9 +28,7 @@ account_name = data['SERVICE_ACCOUNT']
 updater = Updater(TOKEN, use_context=True,
                   request_kwargs=REQUEST_KWARGS)
 day = [data['START_DAY'], data['END_DAY']]
-master = {1: Master('Писхолог', '6ogmjjrvnn9c7qjco3pbvnck3s@group.calendar.google.com', 1)}
-master[1].add_service('Поговорим')
-master[1].add_service('Будем рисуем', 2)
+
 notification = data['NOTIFICATION_TIME']
 SUPERUSERS = data['SUPERUSERS']
 BANNEDUSERS = data['BANNEDUSERS']
@@ -43,6 +41,9 @@ settings.close()
 calendar = GoogleCalendar()
 db_session.global_init("database.db")
 db_sess = db_session.create_session()
+master = [Master('Писхолог', '6ogmjjrvnn9c7qjco3pbvnck3s@group.calendar.google.com', db_sess, 1)]
+master[0].add_service('Поговорим')
+master[0].add_service('Будем рисуем', 2)
 
 
 def start(update, context):
@@ -74,7 +75,7 @@ def start(update, context):
                     context.bot_data['users'][context.chat_data['user'].id] = context.chat_data['user']
                 else:
                     context.bot_data['users'][context.chat_data['user'].id].create_info(update, BANNEDUSERS,
-                                                                                        SUPERUSERS)
+                                                                                        SUPERUSERS, db_sess)
             if 'feedbacks' not in context.bot_data.keys():
                 context.bot_data['feedbacks'] = {}
             if 'info' not in context.bot_data.keys():
@@ -364,8 +365,8 @@ def handler(update, context):
                                                          context.chat_data['keyboard'].service_id]))),
                           context.chat_data['user'].id, context.chat_data['keyboard'].master_id,
                           context.chat_data['keyboard'].service_id)
-            context.chat_data['user'].add_event(event)
-            context.chat_data['user'].create_info(update, BANNEDUSERS, SUPERUSERS)
+            context.chat_data['user'].add_event(event, db_sess)
+            context.chat_data['user'].create_info(update, BANNEDUSERS, SUPERUSERS, db_sess)
             chat_id = update.message.chat_id
             tmd = []
             for el in context.chat_data['user'].events:
@@ -430,7 +431,7 @@ def handler(update, context):
             context.chat_data['feedback'] = False
             context.chat_data['phone'] = False
             context.chat_data['user'].phone = update.message.text
-            context.chat_data['user'].create_info(update, BANNEDUSERS, SUPERUSERS)
+            context.chat_data['user'].create_info(update, BANNEDUSERS, SUPERUSERS, db_sess)
             context.bot.send_message(text='Уверены, что хотите записаться?', chat_id=update.message.chat_id,
                                      reply_markup=markup)
         else:
@@ -490,7 +491,7 @@ def handler(update, context):
             markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=True)
             context.chat_data['feedback'] = False
             context.chat_data['user'].phone = update.message.text
-            context.chat_data['user'].create_info(update, BANNEDUSERS, SUPERUSERS)
+            context.chat_data['user'].create_info(update, BANNEDUSERS, SUPERUSERS, db_sess)
             context.bot.send_message(text='Телефон успешно изменён.', chat_id=update.message.chat_id,
                                      reply_markup=markup)
         else:
@@ -595,7 +596,7 @@ def back_week(update, context):
 
 def share_contact(update, context):
     context.chat_data['user'].phone = update.message.contact.phone_number
-    context.chat_data['user'].create_info(update, BANNEDUSERS, SUPERUSERS)
+    context.chat_data['user'].create_info(update, BANNEDUSERS, SUPERUSERS, db_sess)
     if context.chat_data['change_phone']:
         context.chat_data['change_phone'] = False
         context.chat_data['keyboard'].reset()
@@ -741,7 +742,7 @@ def account(update, context):
 
 def admin(update, context):
     try:
-        context.chat_data['user'].create_info(update, BANNEDUSERS, SUPERUSERS)
+        context.chat_data['user'].create_info(update, BANNEDUSERS, SUPERUSERS, db_sess)
         context.chat_data['keyboard'].reset()
         context.chat_data['keyboard'].create_admin('start')
         reply_keyboard = context.chat_data['keyboard'].keyboard
@@ -1075,8 +1076,8 @@ def set_timezone(update, context):
         if context.chat_data['keyboard'].is_admin(update.message.chat_id):
             context.bot_data['tz'] = datetime.timezone(datetime.timedelta(hours=int(timezone)))
             context.bot_data['tz_int'] = int(timezone)
-            context.bot_data['users'][update.message.chat_id].set_tz(context.bot_data['tz'], context.bot_data['tz_int'])
-            context.bot_data['users'][update.message.chat_id].create_info(update, BANNEDUSERS, SUPERUSERS)
+            context.bot_data['users'][update.message.chat_id].set_tz(context.bot_data['tz'], context.bot_data['tz_int'], db_sess)
+            context.bot_data['users'][update.message.chat_id].create_info(update, BANNEDUSERS, SUPERUSERS, db_sess)
             context.chat_data['keyboard'].set_tz(context.bot_data['tz'], context.bot_data['tz_int'])
             context.bot.send_message(
                 text='Часовой пояс успешно обновлён',
