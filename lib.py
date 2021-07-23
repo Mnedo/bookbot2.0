@@ -1,12 +1,14 @@
 import datetime
 import json
 
+from data.users import UserRes
+
 
 class AccessError(Exception):
     def __init__(self, *args):
         if args:
             args[0].bot.send_message(
-                text='Кажется, Вы в черном листе и не можете совершать какие-либо действия, если это ошибка, свяжитесь с нами.',
+                text='Кажется, Вы в черном листе и не можете совершать какие-либо действия, если это ошибка, свяжитесь с нами /manager',
                 chat_id=args[1])
 
 
@@ -50,20 +52,34 @@ class Event:
 
 
 class User:
-    def __init__(self, user_id, chat_id, tz, tzn):
-        self.id = user_id
-        self.chat = chat_id
-        self.name = ''
-        self.surname = ''
-        self.nickname = ''
+    def __init__(self, update, tz, tzn, db_sess):
+
+        self.id = update.message.chat.id
+        self.name = update.message.chat.first_name
+        self.surname = update.message.chat.last_name if update.message.chat.last_name else ''
+        self.username = update.message.chat.username if update.message.chat.username else ''
         self.is_admin = False
         self.is_banned = False
         self.phone = 0
         self.events = []
         self.tz = tz
         self.tzn = tzn
-        self.reg_time = datetime.datetime.strptime(datetime.datetime.now(tz=tz).strftime('%H:%M %d.%m.%Y'),
+        self.reg_time = datetime.datetime.strptime(datetime.datetime.now(tz=self.tz).strftime('%H:%M %d.%m.%Y'),
                                                    '%H:%M %d.%m.%Y')
+        user = UserRes(
+            user_id=self.id,
+            name=self.name,
+            surname=self.surname,
+            user_name=self.username,
+            is_admin=self.is_admin,
+            is_banned=self.is_banned,
+            phone=self.phone,
+            reg_time=self.reg_time,
+            events=''
+        )
+        db_sess.add(user)
+        db_sess.commit()
+
 
     def __iter__(self):
         events = []
@@ -77,6 +93,13 @@ class User:
         yield 'is_admin', self.is_admin
         yield 'is_banned', self.is_banned
         yield 'registration_time', self.reg_time.strftime('%H:%M %d.%m.%Y')
+
+    def get_sign(self):
+        if self.surname:
+            txt = self.name + ' ' + self.surname
+        else:
+            txt = self.name
+        return txt
 
     def set_tz(self, tz, tzn):
         ltzn = self.tzn
@@ -166,7 +189,7 @@ class Master:
         yield 'calendarID', self.calendarId
         yield 'services', serv
 
-    def add_service(self, name, duration=1):
+    def add_service(self, name, duration=1.0):
         self.services[name] = duration
 
 
@@ -256,7 +279,7 @@ class Buttons:
                 self.keyboard.append(['/add_master', '/del_master'])
                 self.keyboard.append(['/add_service', '/del_service'])
                 self.keyboard.append(['/makemigration', '/applymigration'])
-                self.keyboard.append(['/data_clear', '/create_work_week'])
+                self.keyboard.append(['/data_clear', '/create_work_days'])
                 self.keyboard.append(['/get_feedbacks'])
                 self.keyboard.append(['/system'])
         else:
@@ -333,7 +356,8 @@ class Buttons:
                     ex1.append([sm, em])
                 sttm = int(sp[0].strftime('%H')) * 60 + int(sp[0].strftime('%M'))
                 endtm = int(sp[1].strftime('%H')) * 60 + int(sp[1].strftime('%M'))
-                d = 60 * int(self.services[self.master_id].services[self.service_id])
+                d = 60 * float(self.services[self.master_id].services[self.service_id])
+                d = int(d)
                 res = []
                 ex1 = list(map(lambda x: [x[0], x[1] + 1], ex1))
                 p1 = []
@@ -373,7 +397,8 @@ class Buttons:
                     ex1.append([sm, em])
                 sttm = int(sp[0].strftime('%H')) * 60 + int(sp[0].strftime('%M'))
                 endtm = int(sp[1].strftime('%H')) * 60 + int(sp[1].strftime('%M'))
-                d = 60 * int(self.services[self.master_id].services[self.service_id])
+                d = 60 * float(self.services[self.master_id].services[self.service_id])
+                d = int(d)
                 res = []
                 ex1 = list(map(lambda x: [x[0], x[1] + 1], ex1))
                 p1 = []

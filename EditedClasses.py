@@ -76,7 +76,7 @@ class EditCommandHandler:
                             smb[1](update, context)
                             has_used = True
                             break
-                elif str(message).count(' ') == 7:
+                elif str(message).count(' ') >= 7:
                     if smb[3]:
                         if str(smb[2]) + str(smb[0]) == message.split()[0]:
                             smb[1](update, context)

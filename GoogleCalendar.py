@@ -37,12 +37,12 @@ class GoogleCalendar(object):
             st = '0' + str(self.tzn)
         return st
 
-    def book(self, start_time, end_time, info, ev, calendarid):
+    def book(self, start_time, end_time, info, ev, calendarid, user):
         start_time = start_time.isoformat() + '+{}:00'.format(self.tz_str())
         end_time = end_time.isoformat() + '+{}:00'.format(self.tz_str())
         info += '\nСделано в telegram'
         event = {
-            'summary': ev.service_id,
+            'summary': ev.service_id + ' | ' + str(user.get_sign()),
             'description': info,
             'start': {
                 'dateTime': start_time,

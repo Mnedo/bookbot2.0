@@ -6,7 +6,9 @@ from telegram.ext import CommandHandler, Updater, MessageHandler, Filters
 import datetime
 import json
 from EditedClasses import EditCommandHandler
-from lib import Buttons, AccessError, User, Master, Event
+from data import db_session
+from data.users import UserRes
+from lib import Buttons, AccessError, Master, Event, User
 from GoogleCalendar import GoogleCalendar
 
 settings = open('setup.json', encoding='utf-8')
@@ -29,7 +31,7 @@ day = [data['START_DAY'], data['END_DAY']]
 master = {1: Master('Писхолог', '6ogmjjrvnn9c7qjco3pbvnck3s@group.calendar.google.com', 1)}
 master[1].add_service('Поговорим')
 master[1].add_service('Будем рисуем', 2)
-
+notification = data['NOTIFICATION_TIME']
 SUPERUSERS = data['SUPERUSERS']
 BANNEDUSERS = data['BANNEDUSERS']
 phone = data['MANAGER']['phone']
@@ -39,6 +41,8 @@ start_time = data['START_TIME']
 end_time = data['END_TIME']
 settings.close()
 calendar = GoogleCalendar()
+db_session.global_init("database.db")
+db_sess = db_session.create_session()
 
 
 def start(update, context):
@@ -53,8 +57,7 @@ def start(update, context):
                 if 'tz' in context.bot_data.keys():
                     tz = context.bot_data['tz']
                     tzn = context.bot_data['tz_int']
-                context.chat_data['user'] = User(update['message']['chat']['id'], update.message.chat_id, tz, tzn)
-                context.chat_data['user'].create_info(update, BANNEDUSERS, SUPERUSERS)
+                context.chat_data['user'] = User(update, tz, tzn, db_sess)
             if context.chat_data['user'].id in BANNEDUSERS:
                 raise AccessError(context, update.message.chat_id)
             if 'users' not in context.bot_data.keys():
@@ -356,9 +359,9 @@ def handler(update, context):
         if update.message.text == 'Да':
             event = Event(datetime.datetime.now(tz=context.bot_data['tz']), context.chat_data['keyboard'].timedate,
                           context.chat_data['keyboard'].timedate + datetime.timedelta(
-                              minutes=60 * int(context.chat_data['keyboard'].services[
-                                                   context.chat_data['keyboard'].master_id].services[
-                                                   context.chat_data['keyboard'].service_id])),
+                              minutes=int(60 * float(context.chat_data['keyboard'].services[
+                                                         context.chat_data['keyboard'].master_id].services[
+                                                         context.chat_data['keyboard'].service_id]))),
                           context.chat_data['user'].id, context.chat_data['keyboard'].master_id,
                           context.chat_data['keyboard'].service_id)
             context.chat_data['user'].add_event(event)
@@ -389,10 +392,18 @@ def handler(update, context):
                     context=chat_id,
                     name=str(chat_id) + str(event)
                 )
+                due = int((delta + datetime.timedelta(
+                    hours=int(notification))).total_seconds())
+                context.job_queue.run_once(
+                    feedback_note,
+                    due,
+                    context=chat_id,
+                    name=str(chat_id) + str(event)
+                )
                 time = event.start_time
                 timeend = event.end_time
                 calendar.book(time, timeend, context.chat_data['user'].book_info(event), event,
-                              context.chat_data['keyboard'].calendarId)
+                              context.chat_data['keyboard'].calendarId, context.chat_data['user'])
                 reply_keyboard = [['/Главное меню']]
                 markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=True)
                 text = 'Мы будем вас ждать {}!'.format(str(event))
@@ -537,6 +548,16 @@ def task(context):
     context.bot.send_message(job.context, text='Напоминаю, что мы ждем вас {} на приёме!'.format(date))
 
 
+def feedback_note(context):
+    job = context.job
+    date = ' - '.join(''.join(job.name.split(str(job.context))).split(' - ')[:2])
+    service = job.name.split(' - ')[-1]
+    mainrow = [['/Оставить отзыв'], ['/Главное меню']]
+    markup = ReplyKeyboardMarkup(mainrow, one_time_keyboard=False, resize_keyboard=True)
+    context.bot.send_message(job.context, text='Вы были {} на приёме. Что скажите о своих впечатлениях? Как {}?'.format(date, service),
+                             reply_markup=markup)
+
+
 def registration(update, context):
     message = update.message.text
     weekday = message.split()[-1]
@@ -623,12 +644,12 @@ def change_phone(update, context):
 
 
 def variant(update, context):
-    if update['message']['text'].count(' ') == 7:
+    if update['message']['text'].count(' ') >= 7:
         dtm_start = datetime.datetime.strptime(
             ' '.join([update['message']['text'].split()[1], update['message']['text'].split()[3]]), '%d.%m.%Y %H:%M')
         dtm_end = datetime.datetime.strptime(
             ' '.join([update['message']['text'].split()[1], update['message']['text'].split()[5]]), '%d.%m.%Y %H:%M')
-        name = update['message']['text'].split()[-1]
+        name = update['message']['text'].split(' - ')[-1]
 
         reply_keyboard = [['/Контакты', '/Главное меню']]
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=True)
@@ -864,8 +885,9 @@ def add_master(update, context):
 
     try:
         if context.chat_data['keyboard'].is_admin(update.message.chat_id):
-            master_name = context.args[0]
-            master_calendarId = context.args[1]
+
+            master_calendarId = context.args[0]
+            master_name = ' '.join(context.args[1:])
             master[len(master) + 1] = Master(master_name, master_calendarId, len(master) + 1)
             context.bot.send_message(
                 text='Мастер успешно добавлен, не забудьте о его услугах. /add_service - для инструкций.',
@@ -878,7 +900,7 @@ def add_master(update, context):
             chat_id=update.message.chat_id)
     except (IndexError, ValueError):
         context.bot.send_message(
-            text='Использование: /add_master <master_name> <master_calendarId>\n/instructions - для получения полных инструкций',
+            text='Использование: /add_master <master_calendarId> <master_name>\n/instructions - для получения полных инструкций',
             chat_id=update.message.chat_id)
     except Exception:
         context.bot.send_message(
@@ -921,8 +943,8 @@ def add_service(update, context):
     try:
         if context.chat_data['keyboard'].is_admin(update.message.chat_id):
             id = int(context.args[0])
-            name = context.args[1]
-            duration = context.args[2]
+            duration = context.args[1]
+            name = ' '.join(context.args[2:])
             master[id].add_service(name, duration)
             context.bot.send_message(
                 text='Услуга успешно добавлена.',
@@ -938,7 +960,7 @@ def add_service(update, context):
         for mst in master.keys():
             ids += '{} - {}\n'.format(mst, master[mst].name)
         context.bot.send_message(
-            text='Использование: /add_service <master_id> <service_name> <service_duration>\nВыберите id доступного мастера:\n{}'.format(
+            text='Использование: /add_service <master_id> <service_duration> <service_name>\nВыберите id доступного мастера:\n{}'.format(
                 ids),
             chat_id=update.message.chat_id)
     except Exception:
@@ -1083,11 +1105,12 @@ def ban_user(update, context):
         if context.chat_data['keyboard'].is_admin(update.message.chat_id) and int(user_id) != SUPERUSERS[0]:
             BANNEDUSERS.append(int(user_id))
             context.bot.send_message(
-                text='Пользователь добавлен в чёрный список',
-                chat_id=update.message.chat_id)
-            context.bot.send_message(
                 text='Поздравляем с добавлением в чёрный список! Пропишите /start для перезапуска.',
                 chat_id=int(user_id))
+            context.bot.send_message(
+                text='Пользователь добавлен в чёрный список',
+                chat_id=update.message.chat_id)
+
         else:
             raise AccessError
     except AccessError:
@@ -1163,7 +1186,7 @@ def send_feedbacks(update, context):
 def set_description(update, context):
     try:
         if context.chat_data['keyboard'].is_admin(update.message.chat_id):
-            mes = context.args[0]
+            mes = ' '.join(context.args)
             text = 'Описание успешно обновлено.'
             context.bot_data['info']['description'] = mes
             context.bot.send_message(text=text, chat_id=update.message.chat_id)
@@ -1214,7 +1237,7 @@ def set_number(update, context):
 def set_address(update, context):
     try:
         if context.chat_data['keyboard'].is_admin(update.message.chat_id):
-            mes = context.args[0]
+            mes = ' '.join(context.args)
             context.bot_data['info']['address'] = mes
             text = 'Адрес успешно обновлён.'
             context.bot.send_message(text=text, chat_id=update.message.chat_id)
@@ -1382,7 +1405,7 @@ def create_work_week(update, context):
             chat_id=update.message.chat_id)
     except (IndexError, ValueError):
         context.bot.send_message(
-            text='Использование: /create_work_week <start_date> <days> <calendarId>\nФормат start_date: день.месяц.год\ndays - количество дней',
+            text='Использование: /create_work_days <start_date> <days> <calendarId>\nФормат start_date: день.месяц.год\ndays - количество дней\n/instructions - для получения подробных инструкций',
             chat_id=update.message.chat_id)
     except Exception as e:
         print(e)
@@ -1425,7 +1448,7 @@ dp.add_handler(CommandHandler("back_time", registration, pass_chat_data=True))
 ch.register("Ввести в ручную", self_contact)
 dp.add_handler(CommandHandler("main_menu", start, pass_chat_data=True))
 ch.register("Главное меню", start)
-ch.register("Помощь", help)
+ch.register("Помощь", helpp)
 ch.register("Следующая", nex)
 ch.register("Назад", back)
 ch.register("Статус", info)
@@ -1438,7 +1461,7 @@ dp.add_handler(CommandHandler("set_contact_number", set_number, pass_chat_data=T
 dp.add_handler(CommandHandler("set_address", set_address, pass_chat_data=True, pass_args=True))
 
 dp.add_handler(CommandHandler("set_timezone", set_timezone, pass_chat_data=True, pass_args=True))
-dp.add_handler(CommandHandler("create_work_week", create_work_week, pass_chat_data=True, pass_args=True))
+dp.add_handler(CommandHandler("create_work_days", create_work_week, pass_chat_data=True, pass_args=True))
 
 dp.add_handler(CommandHandler("admin", admin_info, pass_chat_data=True))
 

@@ -4,3 +4,9 @@ google-auth-httplib2
 google-api-python-client
 google-auth
 google-auth-oauthlib
+flask
+flask_login
+flask_restful
+flask_wtf
+sqlalchemy
+sqlalchemy_serializer
