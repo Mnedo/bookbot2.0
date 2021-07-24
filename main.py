@@ -180,15 +180,18 @@ def save_config(context):
                     content=com
                 )
                 db_sess.add(feedback)
-    current_jobs = context.job_queue.all()
+    current_jobs = context.job_queue.jobs()
     for job in current_jobs:
-        notif = NotifRes(
-            context=job.args[0],
-            name=job.name,
-            trigger=job.next_run_time,
-            system_id=job.id,
-        )
-        db_sess.add(notif)
+        if '.' in job.name:
+            ctx = job.context
+            notif = NotifRes(
+                context=ctx,
+                name=job.job.name,
+                trigger=job.job.next_run_time,
+                system_id=job.job.id,
+                trigger_func=job.func_ref,
+            )
+            db_sess.add(notif)
     db_sess.commit()
     """
     repo = git.Repo(os.getcwd())
@@ -828,6 +831,7 @@ def contacts(update, context):
 
 
 def account(update, context):
+    save_config(context)
     context.chat_data['feedback'] = False
     context.chat_data['sure'] = False
     context.chat_data['keyboard'].reset()

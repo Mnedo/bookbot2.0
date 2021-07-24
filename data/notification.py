@@ -14,5 +14,5 @@ class NotifRes(SqlAlchemyBase, UserMixin, SerializerMixin):
     name = sqlalchemy.Column(sqlalchemy.String)
     trigger = sqlalchemy.Column(sqlalchemy.DateTime)
     system_id = sqlalchemy.Column(sqlalchemy.String)
-
+    trigger_func = sqlalchemy.Column(sqlalchemy.String)
 
