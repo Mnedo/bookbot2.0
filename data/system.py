@@ -17,4 +17,7 @@ class System(SqlAlchemyBase, UserMixin, SerializerMixin):
     timezone_int = sqlalchemy.Column(sqlalchemy.Integer)
     banned_users = sqlalchemy.Column(sqlalchemy.String)
     superusers = sqlalchemy.Column(sqlalchemy.String)
+    title = sqlalchemy.Column(sqlalchemy.String)
+    phone = sqlalchemy.Column(sqlalchemy.String)
+    about = sqlalchemy.Column(sqlalchemy.CHAR)
 

@@ -1,5 +1,8 @@
 import os
 
+import git
+from git import Repo
+
 from requests import get
 from telegram import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from telegram.ext import CommandHandler, Updater, MessageHandler, Filters
@@ -7,8 +10,11 @@ import datetime
 import json
 from EditedClasses import EditCommandHandler
 from data import db_session
+from data.feedback import Feedback
 from data.masters import MasterRes
+from data.notification import NotifRes
 from data.services import ServiceRes
+from data.system import System
 from data.users import UserRes
 from lib import Buttons, AccessError, Master, Event, User, Service
 from GoogleCalendar import GoogleCalendar
@@ -43,10 +49,7 @@ settings.close()
 calendar = GoogleCalendar()
 db_session.global_init("database.db")
 db_sess = db_session.create_session()
-
-
-
-
+dt = datetime.datetime.utcnow()
 master = [Master('Писхолог', '6ogmjjrvnn9c7qjco3pbvnck3s@group.calendar.google.com', db_sess, 1)]
 master[0].add_service(Service('Поговорим', db_sess, master[0]), db_sess)
 master[0].add_service(Service('Будем рисуем', db_sess, master[0], 2), db_sess)
@@ -64,9 +67,22 @@ def start(update, context):
                 if 'tz' in context.bot_data.keys():
                     tz = context.bot_data['tz']
                     tzn = context.bot_data['tz_int']
-                context.chat_data['user'] = User(update, tz, tzn, db_sess)
-                context.chat_data['user'].create_info(update, BANNEDUSERS,
-                                                      SUPERUSERS, db_sess)
+                if update.message.chat_id not in list(map(lambda x: x.user_id, db_sess.query(UserRes).all())):
+                    context.chat_data['user'] = User(update, tz, tzn, db_sess)
+                    context.chat_data['user'].create_info(update, BANNEDUSERS,
+                                                          SUPERUSERS, db_sess)
+                else:
+                    user = db_sess.query(UserRes).filter(UserRes.user_id == update.message.chat_id).first()
+                    context.chat_data['user'] = User(update, tz, tzn, db_sess, db=False)
+                    context.chat_data['user'].create_info(update, BANNEDUSERS,
+                                                          SUPERUSERS, db_sess)
+                    context.chat_data['user'].id = user.id
+                    context.chat_data['user'].phone = user.phone
+                    context.chat_data['user'].reg_time = user.reg_time
+                    if user.events != '':
+                        context.chat_data['user'].events = user.events.split(';')
+                    else:
+                        context.chat_data['user'].events = []
             if context.chat_data['user'].user_id in BANNEDUSERS:
                 raise AccessError(context, update.message.chat_id)
             if 'users' not in context.bot_data.keys():
@@ -74,9 +90,13 @@ def start(update, context):
                 context.bot_data['tz_int'] = 3
                 context.bot_data['booked'] = 0
                 context.bot_data['all_books'] = 0
-                context.job_queue.run_monthly(data_clear, when=datetime.time(9), day=21, context=context)
-                context.job_queue.run_daily(analyze, time=datetime.time(14, 20), context=context)
-                # context.job_queue.run_daily(analyze, time=datetime.time(23, 30), context=context)
+                context.job_queue.run_monthly(data_clear, when=datetime.time(9), day=21,
+                                              context=context)
+                context.job_queue.run_daily(analyze, time=datetime.time(18, 23),
+                                            context=context)
+                context.job_queue.run_daily(save_config, time=datetime.time(15, 33), context=context)
+                # context.job_queue.run_daily(analyze, time=datetime.time(23, 58), context=context)
+                # context.job_queue.run_daily(backup, time=datetime.time(23, 59), context=context)
                 context.bot_data['users'] = {context.chat_data['user'].id: context.chat_data['user']}
             else:
                 if context.chat_data['user'].id not in context.bot_data['users'].keys():
@@ -131,6 +151,65 @@ def start(update, context):
             text='Произошла ошибка, пропишите /start для перезапуска или /manager для связи с менеджером',
             chat_id=update.message.chat_id)
 
+
+def save_config(context):
+    system = System(
+        last_update=dt,
+        all_posts=context.bot_data['all_books'],
+        telegram_posts=context.bot_data['booked'],
+        all_users=len(context.bot_data['users']),
+        timezone_int=int(context.bot_data['tz_int']),
+        banned_users=';'.join(list(map(lambda x: str(x), BANNEDUSERS))),
+        superusers=';'.join(list(map(lambda x: str(x), SUPERUSERS))),
+        title=context.bot_data['info']['address'],
+        phone=context.bot_data['info']['number'],
+        about=context.bot_data['info']['description'],
+    )
+    db_sess.add(system)
+    for user_id in context.bot_data['feedbacks']:
+        if len(context.bot_data['feedbacks'][user_id]) == 1:
+            feedback = Feedback(
+                user_id=int(user_id),
+                content=context.bot_data['feedbacks'][user_id]
+            )
+            db_sess.add(feedback)
+        else:
+            for com in context.bot_data['feedbacks'][user_id]:
+                feedback = Feedback(
+                    user_id=int(user_id),
+                    content=com
+                )
+                db_sess.add(feedback)
+    current_jobs = context.job_queue.all()
+    for job in current_jobs:
+        notif = NotifRes(
+            context=job.args[0],
+            name=job.name,
+            trigger=job.next_run_time,
+            system_id=job.id,
+        )
+        db_sess.add(notif)
+    db_sess.commit()
+    """
+    repo = git.Repo(os.getcwd())
+    files = repo.git.diff(None, name_only=True)
+    for f in files.split('\n'):
+        if f != 'main.py':
+            repo.git.add(f)
+    print(files)
+    username = "Mnedo"
+    password = "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"
+    repo = Repo(os.getcwd())
+    origin = repo.remote(name="origin")
+
+    remote = f"https://{username}:{password}@github.com/Mnedo/bookbot2.0.git"
+    os.system(f"git remote add bookbot2.0 {remote}")
+    origin.push()
+
+    #repo.git.commit('-m', 'test commit', author='Mnedo <Basecam@yandex.ru>')
+    #origin = repo.remote(name='origin')
+    #origin.push()
+    """
 
 def analyze(context):
     global master
@@ -348,7 +427,7 @@ def handler(update, context):
             if int(update.message.text.split(':')[0]) in context.chat_data['keyboard'].range:
                 context.chat_data['keyboard'].set_time(update.message.text)
                 context.chat_data['keyboard'].reset()
-                if context.chat_data['user'].phone:
+                if context.chat_data['user'].phone and context.chat_data['user'].phone != '0':
                     context.chat_data['keyboard'].create('sure')
                     reply_keyboard = context.chat_data['keyboard'].keyboard
                     markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=True)
@@ -535,7 +614,9 @@ def handler(update, context):
                                      chat_id=update.message.chat_id)
     elif not context.chat_data['keyboard'].service_id and context.chat_data['app']:
         context.chat_data['book'] = False
-        ftr = list(map(lambda x: int(x), ';'.join(list(map(lambda x: str(x.id), context.chat_data['keyboard'].master_id.services))).split(';')))
+        ftr = list(map(lambda x: int(x),
+                       ';'.join(list(map(lambda x: str(x.id), context.chat_data['keyboard'].master_id.services))).split(
+                           ';')))
         svss = []
         for id in ftr:
             qw = db_sess.query(ServiceRes).filter(ServiceRes.id == id).first()
@@ -1523,6 +1604,7 @@ dp.add_handler(CommandHandler("cancel", sign_out, pass_chat_data=True))
 ch.register("Контакты", contacts)
 dp.add_handler(CommandHandler("contacts", contacts, pass_chat_data=True))
 ch.register("Личный кабинет", account)
+
 dp.add_handler(CommandHandler("admin_panel", admin, pass_chat_data=True))
 dp.add_handler(MessageHandler(Filters.document.file_extension("json"), doc, pass_chat_data=True))
 dp.add_handler(MessageHandler(Filters.contact, share_contact, pass_chat_data=True))

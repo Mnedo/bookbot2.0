@@ -16,7 +16,7 @@ class AccessError(Exception):
 
 
 class Event:
-    def __init__(self, reg_time, start_time, end_time, user_id, master_id, service_id, db_sess, has_notified=False):
+    def __init__(self, reg_time, start_time, end_time, user_id, master_id, service_id, db_sess, has_notified=False, db=True):
         self.id = len(db_sess.query(EventRes).all()) + 1
         self.reg_time = reg_time
         self.start_time = start_time
@@ -27,17 +27,18 @@ class Event:
         self.service_id = service_id
         self.event_id = ''
         self.format = '%Y-%m-%d %H:%M'
-        event = EventRes(
-            user_id=self.user_id,
-            master_id=self.master_id.id,
-            service_id=self.service_id.id,
-            has_notified=self.has_notified,
-            reg_time=self.reg_time,
-            start_time=self.start_time,
-            end_time=self.end_time
-        )
-        db_sess.add(event)
-        db_sess.commit()
+        if db:
+            event = EventRes(
+                user_id=self.user_id,
+                master_id=self.master_id.id,
+                service_id=self.service_id.id,
+                has_notified=self.has_notified,
+                reg_time=self.reg_time,
+                start_time=self.start_time,
+                end_time=self.end_time
+            )
+            db_sess.add(event)
+            db_sess.commit()
 
     def __iter__(self):
         yield 'user_id', self.user_id
@@ -74,7 +75,7 @@ class Event:
 
 
 class User:
-    def __init__(self, update, tz, tzn, db_sess):
+    def __init__(self, update, tz, tzn, db_sess, db=True):
         self.id = len(db_sess.query(UserRes).all()) + 1
         self.user_id = update.message.chat.id
         self.name = update.message.chat.first_name
@@ -88,19 +89,20 @@ class User:
         self.tzn = tzn
         self.reg_time = datetime.datetime.strptime(datetime.datetime.now(tz=self.tz).strftime('%H:%M %d.%m.%Y'),
                                                    '%H:%M %d.%m.%Y')
-        user = UserRes(
-            user_id=self.user_id,
-            name=self.name,
-            surname=self.surname,
-            user_name=self.username,
-            is_admin=self.is_admin,
-            is_banned=self.is_banned,
-            phone=self.phone,
-            reg_time=self.reg_time,
-            events=''
-        )
-        db_sess.add(user)
-        db_sess.commit()
+        if db:
+            user = UserRes(
+                user_id=self.user_id,
+                name=self.name,
+                surname=self.surname,
+                user_name=self.username,
+                is_admin=self.is_admin,
+                is_banned=self.is_banned,
+                phone=self.phone,
+                reg_time=self.reg_time,
+                events=''
+            )
+            db_sess.add(user)
+            db_sess.commit()
 
     def __iter__(self):
         events = []
@@ -208,38 +210,40 @@ ID в системе: {}
 
 
 class Service:
-    def __init__(self, service_name, db_sess, master, duration=1.0):
+    def __init__(self, service_name, db_sess, master, duration=1.0, db=True):
         self.id = len(db_sess.query(ServiceRes).all()) + 1
         self.master = master
         self.service_name = service_name
         self.duration = float(duration)
-        service = ServiceRes(
-            servicename=self.service_name,
-            duration=float(self.duration),
-            master_id=self.master.id
-        )
-        db_sess.add(service)
-        db_sess.commit()
+        if db:
+            service = ServiceRes(
+                servicename=self.service_name,
+                duration=float(self.duration),
+                master_id=self.master.id
+            )
+            db_sess.add(service)
+            db_sess.commit()
 
     def __str__(self):
         return str(self.id)
 
 
 class Master:
-    def __init__(self, mastername, calendarId, db_sess, duration=1):
+    def __init__(self, mastername, calendarId, db_sess, duration=1, db=True):
         self.id = len(db_sess.query(MasterRes).all()) + 1
         self.name = mastername
         self.calendarId = calendarId
         self.duration = duration
         self.services = []
-        master = MasterRes(
-            mastername=self.name,
-            calendarId=self.calendarId,
-            duration=float(self.duration),
-            services=';'.join(self.services)
-        )
-        db_sess.add(master)
-        db_sess.commit()
+        if db:
+            master = MasterRes(
+                mastername=self.name,
+                calendarId=self.calendarId,
+                duration=float(self.duration),
+                services=';'.join(self.services)
+            )
+            db_sess.add(master)
+            db_sess.commit()
 
     def __eq__(self, other):
         if self.name == other.name and self.calendarId == other.calendarId and self.duration == other.duration:
