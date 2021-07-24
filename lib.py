@@ -16,7 +16,8 @@ class AccessError(Exception):
 
 
 class Event:
-    def __init__(self, reg_time, start_time, end_time, user_id, master_id, service_id, db_sess, evid='', has_notified=False,
+    def __init__(self, reg_time, start_time, end_time, user_id, master_id, service_id, db_sess, evid='',
+                 has_notified=False,
                  db=True, special_id=False):
         self.id = len(db_sess.query(EventRes).all()) + 1
         self.reg_time = reg_time
@@ -390,7 +391,8 @@ class Buttons:
                 self.keyboard.append(['/set_description'])
                 self.keyboard.append(['/add_master', '/del_master'])
                 self.keyboard.append(['/add_service', '/del_service'])
-                self.keyboard.append(['/makemigration', '/applymigration'])
+                self.keyboard.append(['/save_config', '/update_config'])
+                self.keyboard.append(['/import_config', '/load_config'])
                 self.keyboard.append(['/data_clear', '/create_work_days'])
                 self.keyboard.append(['/get_feedbacks'])
                 self.keyboard.append(['/system'])

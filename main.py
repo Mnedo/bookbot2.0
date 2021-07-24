@@ -48,10 +48,14 @@ start_time = data['START_TIME']
 end_time = data['END_TIME']
 settings.close()
 calendar = GoogleCalendar()
+if os.path.exists('database.db'):
+    loaded = False
+else:
+    loaded = True
 db_session.global_init("database.db")
 db_sess = db_session.create_session()
 dt = datetime.datetime.utcnow()
-loaded = False
+
 master = []
 
 
@@ -155,161 +159,214 @@ def start(update, context):
             chat_id=update.message.chat_id)
 
 
-def load_config(context):
+def load_config(context, update=''):
     global SUPERUSERS, BANNEDUSERS, master
-    # +system -> +master -> +services -> users -> events -> feedbacks -> notif
-    system = db_sess.query(System).first()
-    users = db_sess.query(UserRes).all()
-    services = db_sess.query(ServiceRes).all()
-    notifications = db_sess.query(NotifRes).all()
-    masters = db_sess.query(MasterRes).all()
-    feedbacks = db_sess.query(Feedback).all()
-    events = db_sess.query(EventRes).all()
-    # system load
-    context.bot_data['all_books'] = system.all_posts
-    context.bot_data['booked'] = system.telegram_posts
-    context.bot_data['tz_int'] = system.timezone_int
-    context.bot_data['tz'] = datetime.timezone(datetime.timedelta(hours=int(system.timezone_int)))
-    if system.banned_users:
-        for user_id in system.banned_users.split(';'):
-            BANNEDUSERS.append(int(user_id))
-    if system.superusers:
-        for user_id in system.superusers.split(';'):
-            SUPERUSERS.append(int(user_id))
-    context.bot_data['info'] = {'description': system.about,
-                                'number': system.phone, 'address': system.title}
-    event_result = {}
 
-    for event_load_info in events:
-        event_result[event_load_info.id] = (
-            event_load_info.reg_time, event_load_info.start_time, event_load_info.end_time,
-            event_load_info.user_id, event_load_info.master_id, event_load_info.service_id, db_sess,
-            event_load_info.event_id)
-        db_sess.delete(event_load_info)
-    masters_to_append = []
-    for master_load_info in masters:
-        masters_to_append.append(
-            [(master_load_info.mastername, master_load_info.calendarId, db_sess),
-             (master_load_info.services.split(';') if master_load_info.services else master_load_info.services)])
-        db_sess.delete(master_load_info)
-    services_res = {}
-    for service_load_info in services:
-        info = [service_load_info.servicename, db_sess, service_load_info.master_id, service_load_info.duration]
-        services_res[service_load_info.id] = info
-        db_sess.delete(service_load_info)
-    for mst in masters_to_append:
-        master_obj = Master(*mst[0])
-        master.append(master_obj)
-        for service_id in mst[1]:
-            info = services_res[int(service_id)]
-            master_obj.add_service(Service(info[0], info[1], master_obj, info[3]), db_sess)
-
-    user_info = []
-    for user_load_ifo in users:
-        user_info.append([context.bot_data['tz'], context.bot_data['tz_int'], user_load_ifo.user_id, user_load_ifo.name,
-                          user_load_ifo.surname, user_load_ifo.user_name, user_load_ifo.is_admin,
-                          user_load_ifo.is_banned,
-                          user_load_ifo.phone, user_load_ifo.reg_time, user_load_ifo.events])
-        db_sess.delete(user_load_ifo)
-    context.bot_data['users'] = {}
-    for user_ in user_info:
-        user = User('', user_[0], user_[1], db_sess, load=True, user_id=user_[2], name=user_[3], surname=user_[4],
-                    username=user_[5], is_admin=user_[6], is_banned=user_[7], phone=user_[8], reg_time=user_[9])
-        if user_[10]:
-            for ev_id in user_[10].split(';'):
-                ev = Event(*event_result[int(ev_id)], special_id=True)
-                user.add_event(ev, db_sess)
-        context.bot_data['users'][int(user_[2])] = user
-    context.bot_data['feedbacks'] = {}
-    for fdb in feedbacks:
-        context.bot_data['feedbacks'][int(fdb.user_id)] = fdb.content
-    for notice in notifications:
-        if notice.trigger_func.split(':')[1] == 'task':
-            due = (notice.trigger - datetime.datetime.utcnow()).total_seconds()
-            chat_id = notice.context
-            name = notice.name
-            context.job_queue.run_once(
-                task,
-                due,
-                context=chat_id,
-                name=name
-            )
-        elif notice.trigger_func.split(':')[1] == 'feedback_note':
-            due = (notice.trigger - datetime.datetime.utcnow()).total_seconds()
-            chat_id = notice.context
-            name = notice.name
-            context.job_queue.run_once(
-                feedback_note,
-                due,
-                context=chat_id,
-                name=name
-            )
-            # !EVENT DICT
-            # LOAD FEEDBACKS AND NOTIF
-            # CHECK RESULT
-
-
-def save_config(context):
-    system = System(
-        last_update=dt,
-        all_posts=context.bot_data['all_books'],
-        telegram_posts=context.bot_data['booked'],
-        all_users=len(context.bot_data['users']),
-        timezone_int=int(context.bot_data['tz_int']),
-        banned_users=';'.join(list(map(lambda x: str(x), BANNEDUSERS))),
-        superusers=';'.join(list(map(lambda x: str(x), SUPERUSERS))),
-        title=context.bot_data['info']['address'],
-        phone=context.bot_data['info']['number'],
-        about=context.bot_data['info']['description'],
-    )
-    db_sess.add(system)
-    for user_id in context.bot_data['feedbacks']:
-        if len(context.bot_data['feedbacks'][user_id]) == 1:
-            feedback = Feedback(
-                user_id=int(user_id),
-                content=context.bot_data['feedbacks'][user_id]
-            )
-            db_sess.add(feedback)
+    flag = True
+    if update:
+        if context.chat_data['keyboard'].is_admin(update.message.chat_id):
+            variable = context
+            context = update
+            update = variable
         else:
-            for com in context.bot_data['feedbacks'][user_id]:
+            flag = False
+
+    # +system -> +master -> +services -> users -> events -> feedbacks -> notif
+    if flag:
+        system = db_sess.query(System).first()
+        users = db_sess.query(UserRes).all()
+        services = db_sess.query(ServiceRes).all()
+        notifications = db_sess.query(NotifRes).all()
+        masters = db_sess.query(MasterRes).all()
+        feedbacks = db_sess.query(Feedback).all()
+        events = db_sess.query(EventRes).all()
+        # system load
+        context.bot_data['all_books'] = system.all_posts
+        context.bot_data['booked'] = system.telegram_posts
+        context.bot_data['tz_int'] = system.timezone_int
+        context.bot_data['tz'] = datetime.timezone(datetime.timedelta(hours=int(system.timezone_int)))
+        if system.banned_users:
+            for user_id in system.banned_users.split(';'):
+                if int(user_id) not in BANNEDUSERS:
+                    BANNEDUSERS.append(int(user_id))
+        if system.superusers:
+            for user_id in system.superusers.split(';'):
+                if int(user_id) not in SUPERUSERS:
+                    SUPERUSERS.append(int(user_id))
+        context.bot_data['info'] = {'description': system.about,
+                                    'number': system.phone, 'address': system.title}
+        event_result = {}
+
+        for event_load_info in events:
+            event_result[event_load_info.id] = (
+                event_load_info.reg_time, event_load_info.start_time, event_load_info.end_time,
+                event_load_info.user_id, event_load_info.master_id, event_load_info.service_id, db_sess,
+                event_load_info.event_id)
+            db_sess.delete(event_load_info)
+        masters_to_append = []
+        for master_load_info in masters:
+            masters_to_append.append(
+                [(master_load_info.mastername, master_load_info.calendarId, db_sess),
+                 (master_load_info.services.split(';') if master_load_info.services else master_load_info.services)])
+            db_sess.delete(master_load_info)
+        services_res = {}
+        for service_load_info in services:
+            info = [service_load_info.servicename, db_sess, service_load_info.master_id, service_load_info.duration]
+            services_res[service_load_info.id] = info
+            db_sess.delete(service_load_info)
+        for mst in masters_to_append:
+            master_obj = Master(*mst[0])
+            master.append(master_obj)
+            for service_id in mst[1]:
+                info = services_res[int(service_id)]
+                master_obj.add_service(Service(info[0], info[1], master_obj, info[3]), db_sess)
+
+        user_info = []
+        for user_load_ifo in users:
+            user_info.append(
+                [context.bot_data['tz'], context.bot_data['tz_int'], user_load_ifo.user_id, user_load_ifo.name,
+                 user_load_ifo.surname, user_load_ifo.user_name, user_load_ifo.is_admin,
+                 user_load_ifo.is_banned,
+                 user_load_ifo.phone, user_load_ifo.reg_time, user_load_ifo.events])
+            db_sess.delete(user_load_ifo)
+        if 'users' not in context.bot_data.keys():
+            context.bot_data['users'] = {}
+        for user_ in user_info:
+            user = User('', user_[0], user_[1], db_sess, load=True, user_id=user_[2], name=user_[3], surname=user_[4],
+                        username=user_[5], is_admin=user_[6], is_banned=user_[7], phone=user_[8], reg_time=user_[9])
+            if user_[10]:
+                for ev_id in user_[10].split(';'):
+                    ev = Event(*event_result[int(ev_id)], special_id=True)
+                    user.add_event(ev, db_sess)
+            context.bot_data['users'][int(user_[2])] = user
+        if 'feedbacks' not in context.bot_data.keys():
+            context.bot_data['feedbacks'] = {}
+        for fdb in feedbacks:
+            context.bot_data['feedbacks'][int(fdb.user_id)] = fdb.content
+        for notice in notifications:
+            if notice.trigger_func.split(':')[1] == 'task':
+                due = (notice.trigger - datetime.datetime.utcnow()).total_seconds()
+                chat_id = notice.context
+                name = notice.name
+                context.job_queue.run_once(
+                    task,
+                    due,
+                    context=chat_id,
+                    name=name
+                )
+            elif notice.trigger_func.split(':')[1] == 'feedback_note':
+                due = (notice.trigger - datetime.datetime.utcnow()).total_seconds()
+                chat_id = notice.context
+                name = notice.name
+                context.job_queue.run_once(
+                    feedback_note,
+                    due,
+                    context=chat_id,
+                    name=name
+                )
+        if update:
+            context.bot.send_message(text='Config применён к системе.',
+                                     chat_id=update.message.chat_id)
+
+
+def save_config(context, update=''):
+    flag = True
+    if update:
+        variable = context
+        context = update
+        update = variable
+        if not context.chat_data['keyboard'].is_admin(update.message.chat_id):
+            flag = False
+
+    if flag:
+        system = System(
+            last_update=dt,
+            all_posts=context.bot_data['all_books'],
+            telegram_posts=context.bot_data['booked'],
+            all_users=len(context.bot_data['users']),
+            timezone_int=int(context.bot_data['tz_int']),
+            banned_users=';'.join(list(map(lambda x: str(x), BANNEDUSERS))),
+            superusers=';'.join(list(map(lambda x: str(x), SUPERUSERS))),
+            title=context.bot_data['info']['address'],
+            phone=context.bot_data['info']['number'],
+            about=context.bot_data['info']['description'],
+        )
+        db_sess.add(system)
+        for user_id in context.bot_data['feedbacks']:
+            if len(context.bot_data['feedbacks'][user_id]) == 1:
                 feedback = Feedback(
                     user_id=int(user_id),
-                    content=com
+                    content=context.bot_data['feedbacks'][user_id][0]
                 )
                 db_sess.add(feedback)
-    current_jobs = context.job_queue.jobs()
-    for job in current_jobs:
-        if '.' in job.name:
-            ctx = job.context
-            notif = NotifRes(
-                context=ctx,
-                name=job.job.name,
-                trigger=job.job.next_run_time,
-                system_id=job.job.id,
-                trigger_func=job.func_ref,
-            )
-            db_sess.add(notif)
-    db_sess.commit()
-    """
-    repo = git.Repo(os.getcwd())
-    files = repo.git.diff(None, name_only=True)
-    for f in files.split('\n'):
-        if f != 'main.py':
-            repo.git.add(f)
-    print(files)
-    username = "Mnedo"
-    password = "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"
-    repo = Repo(os.getcwd())
-    origin = repo.remote(name="origin")
+            else:
+                for com in context.bot_data['feedbacks'][user_id]:
+                    feedback = Feedback(
+                        user_id=int(user_id),
+                        content=com
+                    )
+                    db_sess.add(feedback)
+        current_jobs = context.job_queue.jobs()
+        for job in current_jobs:
+            if '.' in job.name:
+                ctx = job.context
+                notif = NotifRes(
+                    context=ctx,
+                    name=job.job.name,
+                    trigger=job.job.next_run_time,
+                    system_id=job.job.id,
+                    trigger_func=job.func_ref,
+                )
+                db_sess.add(notif)
+        db_sess.commit()
+        if update:
+            context.bot.send_message(text='Config сохранён. /import_config - чтобы посмотреть database.',
+                                     chat_id=update.message.chat_id)
+        """
+        repo = git.Repo(os.getcwd())
+        files = repo.git.diff(None, name_only=True)
+        for f in files.split('\n'):
+            if f != 'main.py':
+                repo.git.add(f)
+        print(files)
+        username = "Mnedo"
+        password = "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"
+        repo = Repo(os.getcwd())
+        origin = repo.remote(name="origin")
+    
+        remote = f"https://{username}:{password}@github.com/Mnedo/bookbot2.0.git"
+        os.system(f"git remote add bookbot2.0 {remote}")
+        origin.push()
+    
+        #repo.git.commit('-m', 'test commit', author='Mnedo <Basecam@yandex.ru>')
+        #origin = repo.remote(name='origin')
+        #origin.push()
+        """
 
-    remote = f"https://{username}:{password}@github.com/Mnedo/bookbot2.0.git"
-    os.system(f"git remote add bookbot2.0 {remote}")
-    origin.push()
 
-    #repo.git.commit('-m', 'test commit', author='Mnedo <Basecam@yandex.ru>')
-    #origin = repo.remote(name='origin')
-    #origin.push()
-    """
+def import_config(update, context):
+    if context.chat_data['keyboard'].is_admin(update.message.chat_id):
+        context.bot.send_message(text='Это активная база данных. Будьте аккуратны изменяя ее.',
+                                 chat_id=update.message.chat_id)
+        context.bot.send_document(chat_id=update.message.chat_id, document=open('database.db', 'rb'),
+                                  filename='База_данных_BookBot.db')
+
+
+def load_cnf(update, context):
+    if context.chat_data['keyboard'].is_admin(update.message.chat_id):
+
+        if update.message.caption == '/load_config':
+            file_info = context.bot.get_file(update.message.document.file_id)
+            file = get(file_info.file_path).content
+            db = open('database.db', 'wb')
+            db.write(file)
+            db.close()
+            context.bot.send_message(text='База данных обновлена', chat_id=update.message.chat_id)
+
+
+def insrt(update, context):
+    if context.chat_data['keyboard'].is_admin(update.message.chat_id):
+        context.bot.send_message(text='Отправьте базу данных с этой подписью.', chat_id=update.message.chat_id)
 
 
 def analyze(context):
@@ -1583,22 +1640,6 @@ def get_help(update, context):
     context.bot.send_contact(update.message.chat_id, phone, first_name, last_name)
 
 
-def doc(update, context):
-    if context.chat_data['file']:
-        context.chat_data['file'] = False
-        file_info = context.bot.get_file(update.message.document.file_id)
-        file = get(file_info.file_path).json()
-        try:
-            for key in file.keys:
-                datetime.datetime.strptime(key, '%d.%m.%Y %H:%M:%S')
-                data = json.load(open('migrations.json'))
-                data[key] = file[key]
-            file.close()
-        except ValueError:
-            pass
-        context.bot.send_message(text='text', chat_id=update.message.chat_id)
-
-
 def create_work_week(update, context):
     global calendar
 
@@ -1672,8 +1713,9 @@ ch.register("Назад", back)
 ch.register("Статус", info)
 ch.register("Оставить отзыв", feedback)
 dp.add_handler(CommandHandler("set_description", set_description, pass_chat_data=True, pass_args=True))
-dp.add_handler(CommandHandler("makemigration", makemigration, pass_chat_data=True, pass_args=True))
-dp.add_handler(CommandHandler("applymigration", applymigration, pass_chat_data=True, pass_args=True))
+dp.add_handler(CommandHandler("save_config", save_config, pass_chat_data=True, pass_args=True))
+dp.add_handler(CommandHandler("update_config", load_config, pass_chat_data=True, pass_args=True))
+dp.add_handler(CommandHandler("import_config", import_config, pass_chat_data=True, pass_args=True))
 dp.add_handler(CommandHandler("set_contact_number", set_number, pass_chat_data=True, pass_args=True))
 
 dp.add_handler(CommandHandler("set_address", set_address, pass_chat_data=True, pass_args=True))
@@ -1707,9 +1749,9 @@ dp.add_handler(CommandHandler("cancel", sign_out, pass_chat_data=True))
 ch.register("Контакты", contacts)
 dp.add_handler(CommandHandler("contacts", contacts, pass_chat_data=True))
 ch.register("Личный кабинет", account)
-
+dp.add_handler(CommandHandler("load_config", insrt, pass_chat_data=True))
 dp.add_handler(CommandHandler("admin_panel", admin, pass_chat_data=True))
-dp.add_handler(MessageHandler(Filters.document.file_extension("json"), doc, pass_chat_data=True))
+dp.add_handler(MessageHandler(Filters.document.file_extension("db"), load_cnf, pass_chat_data=True))
 dp.add_handler(MessageHandler(Filters.contact, share_contact, pass_chat_data=True))
 dp.add_handler(MessageHandler(Filters.text, ch, pass_chat_data=True, pass_job_queue=True))
 
