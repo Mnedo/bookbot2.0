@@ -16,7 +16,8 @@ class AccessError(Exception):
 
 
 class Event:
-    def __init__(self, reg_time, start_time, end_time, user_id, master_id, service_id, db_sess, has_notified=False, db=True):
+    def __init__(self, reg_time, start_time, end_time, user_id, master_id, service_id, db_sess, evid='', has_notified=False,
+                 db=True, special_id=False):
         self.id = len(db_sess.query(EventRes).all()) + 1
         self.reg_time = reg_time
         self.start_time = start_time
@@ -27,18 +28,32 @@ class Event:
         self.service_id = service_id
         self.event_id = ''
         self.format = '%Y-%m-%d %H:%M'
+
         if db:
-            event = EventRes(
-                user_id=self.user_id,
-                master_id=self.master_id.id,
-                service_id=self.service_id.id,
-                has_notified=self.has_notified,
-                reg_time=self.reg_time,
-                start_time=self.start_time,
-                end_time=self.end_time
-            )
+            if special_id:
+                event = EventRes(
+                    user_id=self.user_id,
+                    master_id=self.master_id,
+                    service_id=self.service_id,
+                    has_notified=self.has_notified,
+                    reg_time=self.reg_time,
+                    start_time=self.start_time,
+                    end_time=self.end_time
+                )
+            else:
+                event = EventRes(
+                    user_id=self.user_id,
+                    master_id=self.master_id.id,
+                    service_id=self.service_id.id,
+                    has_notified=self.has_notified,
+                    reg_time=self.reg_time,
+                    start_time=self.start_time,
+                    end_time=self.end_time
+                )
             db_sess.add(event)
             db_sess.commit()
+            if evid:
+                self.set_eventid(evid, db_sess)
 
     def __iter__(self):
         yield 'user_id', self.user_id
@@ -75,20 +90,35 @@ class Event:
 
 
 class User:
-    def __init__(self, update, tz, tzn, db_sess, db=True):
-        self.id = len(db_sess.query(UserRes).all()) + 1
-        self.user_id = update.message.chat.id
-        self.name = update.message.chat.first_name
-        self.surname = update.message.chat.last_name if update.message.chat.last_name else ''
-        self.username = update.message.chat.username if update.message.chat.username else ''
-        self.is_admin = False
-        self.is_banned = False
-        self.phone = 0
-        self.events = []
-        self.tz = tz
-        self.tzn = tzn
-        self.reg_time = datetime.datetime.strptime(datetime.datetime.now(tz=self.tz).strftime('%H:%M %d.%m.%Y'),
-                                                   '%H:%M %d.%m.%Y')
+    def __init__(self, update, tz, tzn, db_sess, db=True, load=False, user_id='', name='', surname='', username='',
+                 is_admin='', is_banned='', phone='', reg_time=''):
+        if load:
+            self.id = len(db_sess.query(UserRes).all()) + 1
+            self.user_id = user_id
+            self.name = name
+            self.surname = surname
+            self.username = username
+            self.is_admin = is_admin
+            self.is_banned = is_banned
+            self.phone = phone
+            self.events = []
+            self.tz = tz
+            self.tzn = tzn
+            self.reg_time = reg_time
+        else:
+            self.id = len(db_sess.query(UserRes).all()) + 1
+            self.user_id = update.message.chat.id
+            self.name = update.message.chat.first_name
+            self.surname = update.message.chat.last_name if update.message.chat.last_name else ''
+            self.username = update.message.chat.username if update.message.chat.username else ''
+            self.is_admin = False
+            self.is_banned = False
+            self.phone = 0
+            self.events = []
+            self.tz = tz
+            self.tzn = tzn
+            self.reg_time = datetime.datetime.strptime(datetime.datetime.now(tz=self.tz).strftime('%H:%M %d.%m.%Y'),
+                                                       '%H:%M %d.%m.%Y')
         if db:
             user = UserRes(
                 user_id=self.user_id,
@@ -536,7 +566,8 @@ class Buttons:
                 self.keyboard.append(['/Главное меню'])
             elif 'service' == command:
                 mainrow = []
-                ftr = list(map(lambda x: int(x), ';'.join(list(map(lambda x: str(x.id), self.master_id.services))).split(';')))
+                ftr = list(
+                    map(lambda x: int(x), ';'.join(list(map(lambda x: str(x.id), self.master_id.services))).split(';')))
                 svss = []
                 for id in ftr:
                     qw = self.db_sess.query(ServiceRes).filter(ServiceRes.id == id).first()

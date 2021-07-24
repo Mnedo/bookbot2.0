@@ -10,6 +10,7 @@ import datetime
 import json
 from EditedClasses import EditCommandHandler
 from data import db_session
+from data.events import EventRes
 from data.feedback import Feedback
 from data.masters import MasterRes
 from data.notification import NotifRes
@@ -50,16 +51,27 @@ calendar = GoogleCalendar()
 db_session.global_init("database.db")
 db_sess = db_session.create_session()
 dt = datetime.datetime.utcnow()
-master = [Master('Писхолог', '6ogmjjrvnn9c7qjco3pbvnck3s@group.calendar.google.com', db_sess, 1)]
-master[0].add_service(Service('Поговорим', db_sess, master[0]), db_sess)
-master[0].add_service(Service('Будем рисуем', db_sess, master[0], 2), db_sess)
+loaded = False
+master = []
+
+
+# master = [Master('Писхолог', '6ogmjjrvnn9c7qjco3pbvnck3s@group.calendar.google.com', db_sess, 1)]
+# master[0].add_service(Service('Поговорим', db_sess, master[0]), db_sess)
+# master[0].add_service(Service('Будем рисуем', db_sess, master[0], 2), db_sess)
 
 
 def start(update, context):
-    global SUPERUSERS, calendar, BANNEDUSERS
+    global SUPERUSERS, calendar, BANNEDUSERS, loaded
 
     try:
-
+        if not loaded:
+            load_config(context)
+            loaded = True
+            context.job_queue.run_monthly(data_clear, when=datetime.time(9), day=21,
+                                          context=context)
+            context.job_queue.run_daily(analyze, time=datetime.time(18, 23),
+                                        context=context)
+            context.job_queue.run_daily(save_config, time=datetime.time(15, 33), context=context)
         if 'Главное меню' not in update['message']['text'] and 'main_menu' not in update['message']['text']:
             if 'user' not in context.chat_data.keys():
                 tz = datetime.timezone(datetime.timedelta(hours=3))
@@ -67,22 +79,17 @@ def start(update, context):
                 if 'tz' in context.bot_data.keys():
                     tz = context.bot_data['tz']
                     tzn = context.bot_data['tz_int']
-                if update.message.chat_id not in list(map(lambda x: x.user_id, db_sess.query(UserRes).all())):
+                if 'users' not in context.bot_data.keys():
                     context.chat_data['user'] = User(update, tz, tzn, db_sess)
                     context.chat_data['user'].create_info(update, BANNEDUSERS,
                                                           SUPERUSERS, db_sess)
                 else:
-                    user = db_sess.query(UserRes).filter(UserRes.user_id == update.message.chat_id).first()
-                    context.chat_data['user'] = User(update, tz, tzn, db_sess, db=False)
-                    context.chat_data['user'].create_info(update, BANNEDUSERS,
-                                                          SUPERUSERS, db_sess)
-                    context.chat_data['user'].id = user.id
-                    context.chat_data['user'].phone = user.phone
-                    context.chat_data['user'].reg_time = user.reg_time
-                    if user.events != '':
-                        context.chat_data['user'].events = user.events.split(';')
+                    if update.message.chat_id not in context.bot_data['users']:
+                        context.chat_data['user'] = User(update, tz, tzn, db_sess)
+                        context.chat_data['user'].create_info(update, BANNEDUSERS,
+                                                              SUPERUSERS, db_sess)
                     else:
-                        context.chat_data['user'].events = []
+                        context.chat_data['user'] = context.bot_data['users'][int(update.message.chat_id)]
             if context.chat_data['user'].user_id in BANNEDUSERS:
                 raise AccessError(context, update.message.chat_id)
             if 'users' not in context.bot_data.keys():
@@ -90,20 +97,16 @@ def start(update, context):
                 context.bot_data['tz_int'] = 3
                 context.bot_data['booked'] = 0
                 context.bot_data['all_books'] = 0
-                context.job_queue.run_monthly(data_clear, when=datetime.time(9), day=21,
-                                              context=context)
-                context.job_queue.run_daily(analyze, time=datetime.time(18, 23),
-                                            context=context)
-                context.job_queue.run_daily(save_config, time=datetime.time(15, 33), context=context)
+
                 # context.job_queue.run_daily(analyze, time=datetime.time(23, 58), context=context)
                 # context.job_queue.run_daily(backup, time=datetime.time(23, 59), context=context)
-                context.bot_data['users'] = {context.chat_data['user'].id: context.chat_data['user']}
+                context.bot_data['users'] = {context.chat_data['user'].user_id: context.chat_data['user']}
             else:
-                if context.chat_data['user'].id not in context.bot_data['users'].keys():
-                    context.bot_data['users'][context.chat_data['user'].id] = context.chat_data['user']
+                if context.chat_data['user'].user_id not in context.bot_data['users'].keys():
+                    context.bot_data['users'][context.chat_data['user'].user_id] = context.chat_data['user']
                 else:
-                    context.bot_data['users'][context.chat_data['user'].id].create_info(update, BANNEDUSERS,
-                                                                                        SUPERUSERS, db_sess)
+                    context.bot_data['users'][context.chat_data['user'].user_id].create_info(update, BANNEDUSERS,
+                                                                                             SUPERUSERS, db_sess)
             if 'feedbacks' not in context.bot_data.keys():
                 context.bot_data['feedbacks'] = {}
             if 'info' not in context.bot_data.keys():
@@ -150,6 +153,100 @@ def start(update, context):
         context.bot.send_message(
             text='Произошла ошибка, пропишите /start для перезапуска или /manager для связи с менеджером',
             chat_id=update.message.chat_id)
+
+
+def load_config(context):
+    global SUPERUSERS, BANNEDUSERS, master
+    # +system -> +master -> +services -> users -> events -> feedbacks -> notif
+    system = db_sess.query(System).first()
+    users = db_sess.query(UserRes).all()
+    services = db_sess.query(ServiceRes).all()
+    notifications = db_sess.query(NotifRes).all()
+    masters = db_sess.query(MasterRes).all()
+    feedbacks = db_sess.query(Feedback).all()
+    events = db_sess.query(EventRes).all()
+    # system load
+    context.bot_data['all_books'] = system.all_posts
+    context.bot_data['booked'] = system.telegram_posts
+    context.bot_data['tz_int'] = system.timezone_int
+    context.bot_data['tz'] = datetime.timezone(datetime.timedelta(hours=int(system.timezone_int)))
+    if system.banned_users:
+        for user_id in system.banned_users.split(';'):
+            BANNEDUSERS.append(int(user_id))
+    if system.superusers:
+        for user_id in system.superusers.split(';'):
+            SUPERUSERS.append(int(user_id))
+    context.bot_data['info'] = {'description': system.about,
+                                'number': system.phone, 'address': system.title}
+    event_result = {}
+
+    for event_load_info in events:
+        event_result[event_load_info.id] = (
+            event_load_info.reg_time, event_load_info.start_time, event_load_info.end_time,
+            event_load_info.user_id, event_load_info.master_id, event_load_info.service_id, db_sess,
+            event_load_info.event_id)
+        db_sess.delete(event_load_info)
+    masters_to_append = []
+    for master_load_info in masters:
+        masters_to_append.append(
+            [(master_load_info.mastername, master_load_info.calendarId, db_sess),
+             (master_load_info.services.split(';') if master_load_info.services else master_load_info.services)])
+        db_sess.delete(master_load_info)
+    services_res = {}
+    for service_load_info in services:
+        info = [service_load_info.servicename, db_sess, service_load_info.master_id, service_load_info.duration]
+        services_res[service_load_info.id] = info
+        db_sess.delete(service_load_info)
+    for mst in masters_to_append:
+        master_obj = Master(*mst[0])
+        master.append(master_obj)
+        for service_id in mst[1]:
+            info = services_res[int(service_id)]
+            master_obj.add_service(Service(info[0], info[1], master_obj, info[3]), db_sess)
+
+    user_info = []
+    for user_load_ifo in users:
+        user_info.append([context.bot_data['tz'], context.bot_data['tz_int'], user_load_ifo.user_id, user_load_ifo.name,
+                          user_load_ifo.surname, user_load_ifo.user_name, user_load_ifo.is_admin,
+                          user_load_ifo.is_banned,
+                          user_load_ifo.phone, user_load_ifo.reg_time, user_load_ifo.events])
+        db_sess.delete(user_load_ifo)
+    context.bot_data['users'] = {}
+    for user_ in user_info:
+        user = User('', user_[0], user_[1], db_sess, load=True, user_id=user_[2], name=user_[3], surname=user_[4],
+                    username=user_[5], is_admin=user_[6], is_banned=user_[7], phone=user_[8], reg_time=user_[9])
+        if user_[10]:
+            for ev_id in user_[10].split(';'):
+                ev = Event(*event_result[int(ev_id)], special_id=True)
+                user.add_event(ev, db_sess)
+        context.bot_data['users'][int(user_[2])] = user
+    context.bot_data['feedbacks'] = {}
+    for fdb in feedbacks:
+        context.bot_data['feedbacks'][int(fdb.user_id)] = fdb.content
+    for notice in notifications:
+        if notice.trigger_func.split(':')[1] == 'task':
+            due = (notice.trigger - datetime.datetime.utcnow()).total_seconds()
+            chat_id = notice.context
+            name = notice.name
+            context.job_queue.run_once(
+                task,
+                due,
+                context=chat_id,
+                name=name
+            )
+        elif notice.trigger_func.split(':')[1] == 'feedback_note':
+            due = (notice.trigger - datetime.datetime.utcnow()).total_seconds()
+            chat_id = notice.context
+            name = notice.name
+            context.job_queue.run_once(
+                feedback_note,
+                due,
+                context=chat_id,
+                name=name
+            )
+            # !EVENT DICT
+            # LOAD FEEDBACKS AND NOTIF
+            # CHECK RESULT
 
 
 def save_config(context):
@@ -213,6 +310,7 @@ def save_config(context):
     #origin = repo.remote(name='origin')
     #origin.push()
     """
+
 
 def analyze(context):
     global master
@@ -451,7 +549,7 @@ def handler(update, context):
             event = Event(datetime.datetime.now(tz=context.bot_data['tz']), context.chat_data['keyboard'].timedate,
                           context.chat_data['keyboard'].timedate + datetime.timedelta(
                               minutes=int(60 * float(context.chat_data['keyboard'].service_id.duration))),
-                          context.chat_data['user'].id, context.chat_data['keyboard'].master_id,
+                          context.chat_data['user'].user_id, context.chat_data['keyboard'].master_id,
                           context.chat_data['keyboard'].service_id, db_sess)
             context.chat_data['user'].add_event(event, db_sess)
             context.chat_data['user'].create_info(update, BANNEDUSERS, SUPERUSERS, db_sess)
@@ -481,6 +579,7 @@ def handler(update, context):
                     context=chat_id,
                     name=str(chat_id) + str(event)
                 )
+                delta = event.end_time - ddt
                 due = int((delta + datetime.timedelta(
                     hours=int(notification))).total_seconds())
                 context.job_queue.run_once(
@@ -593,10 +692,10 @@ def handler(update, context):
                                      chat_id=update.message.chat_id,
                                      reply_markup=markup)
     elif context.chat_data['feedback']:
-        if context.chat_data['user'].id not in context.bot_data['feedbacks'].keys():
-            context.bot_data['feedbacks'][context.chat_data['user'].id] = [update.message.text]
+        if context.chat_data['user'].user_id not in context.bot_data['feedbacks'].keys():
+            context.bot_data['feedbacks'][context.chat_data['user'].user_id] = [update.message.text]
         else:
-            context.bot_data['feedbacks'][context.chat_data['user'].id].append(update.message.text)
+            context.bot_data['feedbacks'][context.chat_data['user'].user_id].append(update.message.text)
         context.chat_data['feedback'] = False
         context.bot.send_message(text='Спасибо за отзыв!', chat_id=update.message.chat_id)
     elif not context.chat_data['keyboard'].master_id and context.chat_data['app']:
