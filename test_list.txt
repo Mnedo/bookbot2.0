@@ -1,122 +1,122 @@
-/Старт без db без других users
-/Старт без db с другими users
-/Старт без db, если user в бане
-/Старт без db, если нет отзывов, нет users
-/Старт без db, если есть отзывы
-/Старт без db, если user в админах
-/Старт с db без других users
-/Старт с db с другими users
-/Старт с db, если user в бане
-/Старт с db, если нет отзывов, нет users
-/Старт с db, если есть отзывы
-/Старт с db, если user в админах
-/Записаться с неожиданным параметром
-/День недели с неожиданным параметром
-/В с неожиданным параметром
-/Записаться использовать кноки назад (Главное меню, назад к неделе, назад у расписанию)
-/Записаться использовать (следующая, назад)
-/Записаться использовать (следующая, назад)
-/Ввести в ручную (номер телефона)
-/Отправить свой контакт правильный (номер телефона)
-/Отправить свой контакт с ошибкой - отменить запись (номер телефона)
-/Отправить свой контакт с ошибкой - исправить на правильный (номер телефона)
-/Записаться уверены что хотите записаться - отмена
-/Записаться в один календарь до лимита (до выдачи ошибки)
-/Записаться в разные календарь до лимита
-/Отменить запись, когда нет записей
-/Отменить запись
-/Отменить запись, которая подгружена с db
-/Контакты
-/Контакты, после изменений
-/Личный кабинет
-/Статус
-/Статус после добавления телефона или после добавления записи
-/Оставить отзыв
-/Сменить телефон - Отправить свой контакт правильный (номер телефона)
-/Сменить телефон - Отправить свой контакт с ошибкой - отменить запись (номер телефона)
-/Сменить телефон - Отправить свой контакт с ошибкой - исправить на правильный (номер телефона)
-/Помощь
-/Помошь в статусе админа
-/admin_panel без статуса админа
-/admin_panel
-/admin без статуса админа
-/admin
-/user_info без статуса админа
-/user_info
-/user_info <user_id> CHECK
-/user_info после моментальных изменений - телефон, запипси
-/main_menu
-/ban_user без статуса админа
-/ban_user
-/ban_user <user_id> CHECK
-/ban_user <user_id> user_id не существует
-/ban_user <user_id> user_id - admin_id
-/unban_user без статуса админа
-/unban_user
-/unban_user <user_id> CHECK
-/unban_user <user_id> user_id не существует
-/unban_user <user_id> user_id не в бане
-/add_superuser без статуса админа
-/add_superuser
-/add_superuser <user_id> CHECK
-/add_superuser <user_id> user_id уже админ
-/add_superuser <user_id> user_id заблокирован
-/add_superuser <user_id> user_id не существует
-/del_superuser без статуса админа
-/del_superuser
-/del_superuser <user_id> CHECK
-/del_superuser <user_id> user_id не в админах
-/del_superuser <user_id> не существует
-/del_superuser <user_id> заблокирован
-/set_contact_number без статуса админа
-/set_contact_number
-/set_contact_number <number> CHECK
-/set_address без статуса админа
-/set_address
-/set_address <address> CHECK
-/set_description без статуса админа
-/set_description
-/set_description <description> CHECK
-/add_master без статуса админа
-/add_master
-/add_master без одного параметра
-/add_master с тремя
-/instructions
-/del_master без статуса админа
-/del_master
-/del_master с тремя
-/del_master wrong master_id
-/add_service без статуса админа
-/add_service
-/add_service без одного параметра
-/add_service с четырьмя
-/add_service wrong master_id
-/del_service без статуса админа
-/del_service
-/del_service с тремя
-/del_service wrong master_id
-/del_service wrong service_id
-/import_config без статуса админа
-/import_config
-/load_config без статуса админа
-/load_config
-/save_config без статуса админа
-/save_config
-/update_config без статуса админа
-/update_config
-/data_clear без статуса админа
-/data_clear
-/data_clear со старыми записями
-/create_work_days без статуса админа
-/create_work_days
-/create_work_days wrong start_date
-/get_feedbacks без статуса админа
-/get_feedbacks
-/system без статуса админа
-/system
-уведмоление до сеанса
-уведомление после сеанса
-авто-data_clear
-авто-analyze
-авто-save_config
-# DB
++   /Старт без db без других users
+    /Старт без db с другими users
+    /Старт без db, если user в бане
++   /Старт без db, если нет отзывов, нет users
+    /Старт без db, если есть отзывы
++   /Старт без db, если user в админах
++   /Старт с db без других users
+    /Старт с db с другими users
+    /Старт с db, если user в бане
++   /Старт с db, если нет отзывов, нет users
+    /Старт с db, если есть отзывы
++   /Старт с db, если user в админах
++   /Записаться с неожиданным параметром
++   /День недели с неожиданным параметром
++   /В с неожиданным параметром
++   /Записаться использовать кноки назад (Главное меню, назад к неделе, назад у расписанию)
++   /Записаться использовать (следующая, назад)
++   /Записаться использовать (следующая, назад)
++   /Ввести в ручную (номер телефона)
++   /Отправить свой контакт правильный (номер телефона)
++   /Отправить свой контакт с ошибкой - отменить запись (номер телефона)
++   /Отправить свой контакт с ошибкой - исправить на правильный (номер телефона)
++   /Записаться уверены что хотите записаться - отмена
++   /Записаться в один календарь до лимита (до выдачи ошибки)
++   /Записаться в разные календарь до лимита
++   /Отменить запись, когда нет записей
++   /Отменить запись
++   /Отменить запись, которая подгружена с db
++   /Контакты
++   /Контакты, после изменений
++   /Личный кабинет
++   /Статус
++   /Статус после добавления телефона или после добавления записи
++   /Оставить отзыв
++   /Сменить телефон - Отправить свой контакт правильный (номер телефона)
++   /Сменить телефон - Отправить свой контакт с ошибкой - отменить запись (номер телефона)
++   /Сменить телефон - Отправить свой контакт с ошибкой - исправить на правильный (номер телефона)
++   /Помощь
++   /Помошь в статусе админа
++   /admin_panel без статуса админа
++   /admin_panel
++   /admin без статуса админа
++   /admin
++   /user_info без статуса админа
++   /user_info
++   /user_info <user_id> CHECK +
++   /user_info после моментальных изменений - телефон, запипси +
++   /main_menu
++   /ban_user без статуса админа
++   /ban_user
+    /ban_user <user_id> CHECK
+    /ban_user <user_id> user_id не существует
+    /ban_user <user_id> user_id - admin_id
++   /unban_user без статуса админа
++   /unban_user
+    /unban_user <user_id> CHECK
+    /unban_user <user_id> user_id не существует
+    /unban_user <user_id> user_id не в бане
++   /add_superuser без статуса админа
++   /add_superuser
+    /add_superuser <user_id> CHECK
+    /add_superuser <user_id> user_id уже админ
+    /add_superuser <user_id> user_id заблокирован
+    /add_superuser <user_id> user_id не существует
++   /del_superuser без статуса админа
++   /del_superuser
+    /del_superuser <user_id> CHECK
+    /del_superuser <user_id> user_id не в админах
+    /del_superuser <user_id> не существует
+    /del_superuser <user_id> заблокирован
++   /set_contact_number без статуса админа
++   /set_contact_number
++   /set_contact_number <number> CHECK
++   /set_address без статуса админа
++   /set_address
++   /set_address <address> CHECK
++   /set_description без статуса админа
++   /set_description
++   /set_description <description> CHECK
++   /add_master без статуса админа
++   /add_master
++   /add_master без одного параметра
++   /add_master с тремя
++   /instructions
++   /del_master без статуса админа
++   /del_master
++   /del_master с тремя
++   /del_master wrong master_id
++   /add_service без статуса админа
++   /add_service
++   /add_service без одного параметра
++   /add_service с четырьмя
++   /add_service wrong master_id
++   /del_service без статуса админа
++   /del_service
++   /del_service с тремя
++   /del_service wrong master_id
++   /del_service wrong service_id
++   /import_config без статуса админа
++   /import_config
++   /load_config без статуса админа
++   /load_config
++   /save_config без статуса админа
++   /save_config
++   /update_config без статуса админа ('Update' object has no attribute 'chat_data')
++   /update_config ('Update' object has no attribute 'chat_data')
++   /data_clear без статуса админа
++   /data_clear
+    /data_clear со старыми записями
++   /create_work_days без статуса админа
++   /create_work_days
++   /create_work_days wrong start_date
++   /get_feedbacks без статуса админа
+?+  /get_feedbacks
++   /system без статуса админа
++   /system
+    уведмоление до сеанса
+    уведомление после сеанса
+    авто-data_clear
+    авто-analyze
+    авто-save_config
+    # DB

@@ -134,7 +134,7 @@ def start(update, context):
                    'Обращайтесь к подсказкам на клавиатуре, они Вам помогут. '
         else:
             text = 'Что-то ещё? Выберите подсказку /Контакты, чтобы узнать о нас больше!'
-            context.chat_data['keyboard'].service_id = ''
+            context.chat_data['keyboard'].service_id = 0
             context.chat_data['keyboard'].master_id = 0
             context.chat_data['feedback'] = False
             context.chat_data['phone'] = False
@@ -164,15 +164,14 @@ def load_config(context, update=''):
 
     flag = True
     if update:
-        if context.chat_data['keyboard'].is_admin(update.message.chat_id):
-            variable = context
-            context = update
-            update = variable
-        else:
+        variable = context
+        context = update
+        update = variable
+        if not context.chat_data['keyboard'].is_admin(update.message.chat_id):
             flag = False
-
-    # +system -> +master -> +services -> users -> events -> feedbacks -> notif
+            context.bot.send_message(text='Нет доступа.', chat_id=update.message.chat_id)
     if flag:
+        # +system -> +master -> +services -> users -> events -> feedbacks -> notif
         system = db_sess.query(System).first()
         users = db_sess.query(UserRes).all()
         services = db_sess.query(ServiceRes).all()
@@ -277,6 +276,8 @@ def save_config(context, update=''):
         update = variable
         if not context.chat_data['keyboard'].is_admin(update.message.chat_id):
             flag = False
+            context.bot.send_message(text='Нет доступа.',
+                                     chat_id=update.message.chat_id)
 
     if flag:
         system = System(
@@ -350,6 +351,9 @@ def import_config(update, context):
                                  chat_id=update.message.chat_id)
         context.bot.send_document(chat_id=update.message.chat_id, document=open('database.db', 'rb'),
                                   filename='База_данных_BookBot.db')
+    else:
+        context.bot.send_message(text='Нет доступа.',
+                                 chat_id=update.message.chat_id)
 
 
 def load_cnf(update, context):
@@ -362,11 +366,17 @@ def load_cnf(update, context):
             db.write(file)
             db.close()
             context.bot.send_message(text='База данных обновлена', chat_id=update.message.chat_id)
+    else:
+        context.bot.send_message(text='Нет доступа.',
+                                 chat_id=update.message.chat_id)
 
 
 def insrt(update, context):
     if context.chat_data['keyboard'].is_admin(update.message.chat_id):
         context.bot.send_message(text='Отправьте базу данных с этой подписью.', chat_id=update.message.chat_id)
+    else:
+        context.bot.send_message(text='Нет доступа.',
+                                 chat_id=update.message.chat_id)
 
 
 def analyze(context):
@@ -603,11 +613,13 @@ def handler(update, context):
     elif context.chat_data['sure']:
         context.chat_data['sure'] = False
         if update.message.text == 'Да':
-            event = Event(datetime.datetime.strptime(datetime.datetime.now(tz=context.bot_data['tz']).strftime('%Y-%m-%d %H:%M:S'), '%Y-%m-%d %H:%M:S'), context.chat_data['keyboard'].timedate,
-                          context.chat_data['keyboard'].timedate + datetime.timedelta(
-                              minutes=int(60 * float(context.chat_data['keyboard'].service_id.duration))),
-                          context.chat_data['user'].user_id, context.chat_data['keyboard'].master_id,
-                          context.chat_data['keyboard'].service_id, db_sess)
+            event = Event(datetime.datetime.strptime(
+                datetime.datetime.now(tz=context.bot_data['tz']).strftime('%Y-%m-%d %H:%M:S'), '%Y-%m-%d %H:%M:S'),
+                context.chat_data['keyboard'].timedate,
+                context.chat_data['keyboard'].timedate + datetime.timedelta(
+                    minutes=int(60 * float(context.chat_data['keyboard'].service_id.duration))),
+                context.chat_data['user'].user_id, context.chat_data['keyboard'].master_id,
+                context.chat_data['keyboard'].service_id, db_sess)
             context.chat_data['user'].add_event(event, db_sess)
             context.chat_data['user'].create_info(update, BANNEDUSERS, SUPERUSERS, db_sess)
             chat_id = update.message.chat_id
@@ -627,6 +639,7 @@ def handler(update, context):
                 context.bot.send_message(text=text, chat_id=update.message.chat_id,
                                          reply_markup=markup)
             else:
+                context.chat_data['book'] = False
                 ddt = datetime.datetime.strptime(ddt.strftime('%Y-%m-%d %H:%M:%S'), '%Y-%m-%d %H:%M:%S')
                 delta = event.start_time - ddt
                 due = int((delta - datetime.timedelta(
@@ -658,6 +671,7 @@ def handler(update, context):
                 context.bot.send_message(text=text, chat_id=update.message.chat_id,
                                          reply_markup=markup)
         else:
+            context.chat_data['book'] = True
             context.chat_data['keyboard'].reset()
             context.chat_data['keyboard'].create('time')
             reply_keyboard = context.chat_data['keyboard'].keyboard
@@ -818,27 +832,32 @@ def feedback_note(context):
 
 def registration(update, context):
     message = update.message.text
-    weekday = message.split()[-1]
-    context.chat_data['keyboard'].set_weekday(weekday)
-    context.chat_data['keyboard'].reset()
-    context.chat_data['keyboard'].create('registration')
-    reply_keyboard = context.chat_data['keyboard'].keyboard
-    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=True)
-    context.bot.send_message(text='Когда бы вы могли подойти?', chat_id=update.message.chat_id,
-                             reply_markup=markup)
-
+    if '.' in message:
+        weekday = message.split()[-1]
+        context.chat_data['keyboard'].set_weekday(weekday)
+        context.chat_data['keyboard'].reset()
+        context.chat_data['keyboard'].create('registration')
+        reply_keyboard = context.chat_data['keyboard'].keyboard
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=True)
+        context.bot.send_message(text='Когда бы вы могли подойти?', chat_id=update.message.chat_id,
+                                 reply_markup=markup)
+    else:
+        context.bot.send_message(text='Используй подсказку.', chat_id=update.message.chat_id)
 
 def time(update, context):
     context.chat_data['book'] = True
     message = update.message.text
-    delta = message.split()[-1].split('-')
-    context.chat_data['keyboard'].reset()
-    context.chat_data['keyboard'].set_range(delta)
-    context.chat_data['keyboard'].create('time')
-    reply_keyboard = context.chat_data['keyboard'].keyboard
-    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=True)
-    context.bot.send_message(text='В какое время Вас ждать?', chat_id=update.message.chat_id,
-                             reply_markup=markup)
+    if '-' in message:
+        delta = message.split()[-1].split('-')
+        context.chat_data['keyboard'].reset()
+        context.chat_data['keyboard'].set_range(delta)
+        context.chat_data['keyboard'].create('time')
+        reply_keyboard = context.chat_data['keyboard'].keyboard
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=True)
+        context.bot.send_message(text='В какое время Вас ждать?', chat_id=update.message.chat_id,
+                                 reply_markup=markup)
+    else:
+        context.bot.send_message(text='Используй подсказку.', chat_id=update.message.chat_id)
 
 
 def back_week(update, context):
@@ -1149,6 +1168,8 @@ def add_master(update, context):
 
             master_calendarId = context.args[0]
             master_name = ' '.join(context.args[1:])
+            if master_name == '' or master_calendarId == '':
+                raise ValueError
             mst = Master(master_name, master_calendarId, db_sess)
             master.append(mst)
             context.bot.send_message(
@@ -1212,6 +1233,8 @@ def add_service(update, context):
             id = int(context.args[0])
             duration = context.args[1]
             name = ' '.join(context.args[2:])
+            if id == '' or duration == '' or name == '':
+                raise ValueError
             master[id].add_service(Service(name, db_sess, master[id], duration), db_sess)
             context.bot.send_message(
                 text='Услуга успешно добавлена.',
@@ -1246,6 +1269,8 @@ def del_service(update, context):
         if context.chat_data['keyboard'].is_admin(update.message.chat_id):
             master_id = int(context.args[0])
             service_id = int(context.args[1])
+            if master_id == '' or service_id == '':
+                raise ValueError
             mst = master[master_id]
             service = mst.services[service_id]
             sv = db_sess.query(ServiceRes).filter(ServiceRes.id == service.id).first()
@@ -1285,8 +1310,9 @@ def del_service(update, context):
 def add_superuser(update, context):
     global SUPERUSERS
     try:
-        user_id = context.args[0]
+
         if context.chat_data['keyboard'].is_admin(update.message.chat_id):
+            user_id = context.args[0]
             SUPERUSERS.append(int(user_id))
             context.bot.send_message(
                 text='Суперпользователь успешно добавлен',
@@ -1313,8 +1339,9 @@ def add_superuser(update, context):
 def del_superuser(update, context):
     global SUPERUSERS
     try:
-        user_id = context.args[0]
+
         if context.chat_data['keyboard'].is_admin(update.message.chat_id) and int(user_id) != SUPERUSERS[0]:
+            user_id = context.args[0]
             if int(user_id) in SUPERUSERS:
                 del SUPERUSERS[SUPERUSERS.index(int(user_id))]
                 txt = 'Суперпользователь успешно удалён'
@@ -1372,8 +1399,9 @@ def set_timezone(update, context):
 def ban_user(update, context):
     global SUPERUSERS, BANNEDUSERS
     try:
-        user_id = context.args[0]
+
         if context.chat_data['keyboard'].is_admin(update.message.chat_id) and int(user_id) != SUPERUSERS[0]:
+            user_id = context.args[0]
             BANNEDUSERS.append(int(user_id))
             context.bot.send_message(
                 text='Поздравляем с добавлением в чёрный список! Пропишите /start для перезапуска.',
@@ -1401,8 +1429,9 @@ def ban_user(update, context):
 def unban_user(update, context):
     global SUPERUSERS, BANNEDUSERS
     try:
-        user_id = context.args[0]
+
         if context.chat_data['keyboard'].is_admin(update.message.chat_id):
+            user_id = context.args[0]
             if int(user_id) in BANNEDUSERS:
                 del BANNEDUSERS[BANNEDUSERS.index(int(user_id))]
                 txt = 'Пользователь успешно удалён из чёрного списка'
@@ -1548,27 +1577,33 @@ def change_phone(update, context):
 
 
 def data_clear(context, update=''):
+    flag = False
     if update:
         variable = context
         context = update
         update = variable
-    txt = 'data_clear:\n'
-    counter = 0
-    valid = 0
-    for id in context.bot_data['users'].keys():
-        for event in context.bot_data['users'][id].events:
-            valid += 1
-            if event.end_time < datetime.datetime.strptime(
-                    datetime.datetime.now(tz=context.bot_data['tz']).strftime('%Y-%m-%d %H:%M:%S'),
-                    '%Y-%m-%d %H:%M:%S'):
-                counter += 1
-                del context.bot_data['users'][id].events[context.bot_data['users'][id].events.index(event)]
-    txt += '{} posts has deleted.\n'.format(counter)
-    txt += '{} posts has checked.\n'.format(valid)
-    if update:
-        context.bot.send_message(text=txt, chat_id=update.message.chat_id)
-    else:
-        print(txt)
+        if context.chat_data['keyboard'].is_admin(update.message.chat_id):
+            flag = True
+        else:
+            context.bot.send_message(text='Нет доступа', chat_id=update.message.chat_id)
+    if flag:
+        txt = 'data_clear:\n'
+        counter = 0
+        valid = 0
+        for id in context.bot_data['users'].keys():
+            for event in context.bot_data['users'][id].events:
+                valid += 1
+                if event.end_time < datetime.datetime.strptime(
+                        datetime.datetime.now(tz=context.bot_data['tz']).strftime('%Y-%m-%d %H:%M:%S'),
+                        '%Y-%m-%d %H:%M:%S'):
+                    counter += 1
+                    del context.bot_data['users'][id].events[context.bot_data['users'][id].events.index(event)]
+        txt += '{} posts has deleted.\n'.format(counter)
+        txt += '{} posts has checked.\n'.format(valid)
+        if update:
+            context.bot.send_message(text=txt, chat_id=update.message.chat_id)
+        else:
+            print(txt)
 
 
 def info(update, context):
