@@ -1,11 +1,11 @@
 +   /Старт без db без других users
-    /Старт без db с другими users
++   /Старт без db с другими users
     /Старт без db, если user в бане
 +   /Старт без db, если нет отзывов, нет users
     /Старт без db, если есть отзывы
 +   /Старт без db, если user в админах
 +   /Старт с db без других users
-    /Старт с db с другими users
++   /Старт с db с другими users
     /Старт с db, если user в бане
 +   /Старт с db, если нет отзывов, нет users
     /Старт с db, если есть отзывы
@@ -48,26 +48,26 @@
 +   /main_menu
 +   /ban_user без статуса админа
 +   /ban_user
-    /ban_user <user_id> CHECK
-    /ban_user <user_id> user_id не существует
-    /ban_user <user_id> user_id - admin_id
++   /ban_user <user_id> CHECK
++   /ban_user <user_id> user_id не существует
++   /ban_user <user_id> user_id - admin_id
 +   /unban_user без статуса админа
 +   /unban_user
-    /unban_user <user_id> CHECK
-    /unban_user <user_id> user_id не существует
-    /unban_user <user_id> user_id не в бане
++   /unban_user <user_id> CHECK
++   /unban_user <user_id> user_id не существует
++   /unban_user <user_id> user_id не в бане
 +   /add_superuser без статуса админа
 +   /add_superuser
-    /add_superuser <user_id> CHECK
-    /add_superuser <user_id> user_id уже админ
-    /add_superuser <user_id> user_id заблокирован
-    /add_superuser <user_id> user_id не существует
++   /add_superuser <user_id> CHECK
++   /add_superuser <user_id> user_id уже админ
++   /add_superuser <user_id> user_id заблокирован
++   /add_superuser <user_id> user_id не существует
 +   /del_superuser без статуса админа
 +   /del_superuser
-    /del_superuser <user_id> CHECK
-    /del_superuser <user_id> user_id не в админах
-    /del_superuser <user_id> не существует
-    /del_superuser <user_id> заблокирован
++   /del_superuser <user_id> CHECK
++   /del_superuser <user_id> user_id не в админах
++   /del_superuser <user_id> не существует
++   /del_superuser <user_id> заблокирован
 +   /set_contact_number без статуса админа
 +   /set_contact_number
 +   /set_contact_number <number> CHECK

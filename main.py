@@ -71,11 +71,11 @@ def start(update, context):
         if not loaded:
             load_config(context)
             loaded = True
-            context.job_queue.run_monthly(data_clear, when=datetime.time(9), day=21,
+            context.job_queue.run_monthly(data_clear, when=datetime.time(1), day=28,
                                           context=context)
-            context.job_queue.run_daily(analyze, time=datetime.time(18, 23),
+            context.job_queue.run_daily(analyze, time=datetime.time(20, 58, 59, 59),
                                         context=context)
-            context.job_queue.run_daily(save_config, time=datetime.time(15, 33), context=context)
+            context.job_queue.run_daily(save_config, time=datetime.time(20, 59, 59, 59), context=context)
         if 'Главное меню' not in update['message']['text'] and 'main_menu' not in update['message']['text']:
             if 'user' not in context.chat_data.keys():
                 tz = datetime.timezone(datetime.timedelta(hours=3))
@@ -844,6 +844,7 @@ def registration(update, context):
     else:
         context.bot.send_message(text='Используй подсказку.', chat_id=update.message.chat_id)
 
+
 def time(update, context):
     context.chat_data['book'] = True
     message = update.message.text
@@ -1313,7 +1314,8 @@ def add_superuser(update, context):
 
         if context.chat_data['keyboard'].is_admin(update.message.chat_id):
             user_id = context.args[0]
-            SUPERUSERS.append(int(user_id))
+            if int(user_id) not in SUPERUSERS:
+                SUPERUSERS.append(int(user_id))
             context.bot.send_message(
                 text='Суперпользователь успешно добавлен',
                 chat_id=update.message.chat_id)
@@ -1332,7 +1334,7 @@ def add_superuser(update, context):
             chat_id=update.message.chat_id)
     except Exception:
         context.bot.send_message(
-            text='Произошла ошибка, попробуйте ещё раз. Если ошибка повторится, введите /start \nВы можете связаться с менеджером по команде /manager',
+            text='Произошла ошибка, попробуйте ещё раз. Если ошибка повторится, введите /start \nПроверьте id.',
             chat_id=update.message.chat_id)
 
 
@@ -1340,9 +1342,9 @@ def del_superuser(update, context):
     global SUPERUSERS
     try:
 
-        if context.chat_data['keyboard'].is_admin(update.message.chat_id) and int(user_id) != SUPERUSERS[0]:
+        if context.chat_data['keyboard'].is_admin(update.message.chat_id):
             user_id = context.args[0]
-            if int(user_id) in SUPERUSERS:
+            if int(user_id) in SUPERUSERS and int(user_id) != SUPERUSERS[0]:
                 del SUPERUSERS[SUPERUSERS.index(int(user_id))]
                 txt = 'Суперпользователь успешно удалён'
             else:
@@ -1400,15 +1402,31 @@ def ban_user(update, context):
     global SUPERUSERS, BANNEDUSERS
     try:
 
-        if context.chat_data['keyboard'].is_admin(update.message.chat_id) and int(user_id) != SUPERUSERS[0]:
+        if context.chat_data['keyboard'].is_admin(update.message.chat_id):
             user_id = context.args[0]
-            BANNEDUSERS.append(int(user_id))
-            context.bot.send_message(
-                text='Поздравляем с добавлением в чёрный список! Пропишите /start для перезапуска.',
-                chat_id=int(user_id))
-            context.bot.send_message(
-                text='Пользователь добавлен в чёрный список',
-                chat_id=update.message.chat_id)
+            if not user_id.isdigit():
+                context.bot.send_message(
+                    text='Такого id не существует.',
+                    chat_id=update.message.chat_id)
+            elif int(user_id) == SUPERUSERS[0]:
+                raise AccessError
+            elif int(user_id) not in list(map(lambda x: int(x), context.bot_data['users'].keys())):
+                context.bot.send_message(
+                    text='Такого id не существует.',
+                    chat_id=update.message.chat_id)
+            elif int(user_id) in BANNEDUSERS:
+                context.bot.send_message(
+                    text='Пользователь уже забанен.',
+                    chat_id=update.message.chat_id)
+            else:
+                BANNEDUSERS.append(int(user_id))
+                context.bot_data['users'][int(user_id)].is_banned = True
+                context.bot.send_message(
+                    text='Поздравляем с добавлением в чёрный список! Пропишите /start для перезапуска.',
+                    chat_id=int(user_id))
+                context.bot.send_message(
+                    text='Пользователь добавлен в чёрный список',
+                    chat_id=update.message.chat_id)
 
         else:
             raise AccessError
@@ -1422,7 +1440,7 @@ def ban_user(update, context):
             chat_id=update.message.chat_id)
     except Exception:
         context.bot.send_message(
-            text='Произошла ошибка, попробуйте ещё раз. Если ошибка повторится, введите /start \nВы можете связаться с менеджером по команде /manager',
+            text='Произошла ошибка, попробуйте ещё раз. Если ошибка повторится, введите /start \n',
             chat_id=update.message.chat_id)
 
 
@@ -1432,17 +1450,24 @@ def unban_user(update, context):
 
         if context.chat_data['keyboard'].is_admin(update.message.chat_id):
             user_id = context.args[0]
-            if int(user_id) in BANNEDUSERS:
+            if not user_id.isdigit():
+                context.bot.send_message(
+                    text='Такого id не существует.',
+                    chat_id=update.message.chat_id)
+            elif int(user_id) in BANNEDUSERS:
                 del BANNEDUSERS[BANNEDUSERS.index(int(user_id))]
                 txt = 'Пользователь успешно удалён из чёрного списка'
+                context.bot.send_message(
+                    text='С возвращением, пропишите /start для перезапуска.',
+                    chat_id=int(user_id))
+                context.bot_data['users'][int(user_id)].is_banned = False
             else:
                 txt = 'Такого пользователя не существует, проверьте id'
+
             context.bot.send_message(
                 text=txt,
                 chat_id=update.message.chat_id)
-            context.bot.send_message(
-                text='С возвращением, пропишите /start для перезапуска.',
-                chat_id=int(user_id))
+
         else:
             raise AccessError
     except AccessError:
