@@ -327,29 +327,19 @@ def save_config(context, update=''):
                 )
                 db_sess.add(notif)
         db_sess.commit()
+
+        repo = git.Repo(os.getcwd())
+        repo.git.add('database.db')
+        repo.git.commit('-m', 'test commit', author='Mnedo <Basecam@yandex.ru>')
+        origin = repo.remote(name="origin")
+        origin.push()
         if update:
             context.bot.send_message(text='Config сохранён. /import_config - чтобы посмотреть database.',
                                      chat_id=update.message.chat_id)
-        """
-        repo = git.Repo(os.getcwd())
-        files = repo.git.diff(None, name_only=True)
-        for f in files.split('\n'):
-            if f != 'main.py':
-                repo.git.add(f)
-        print(files)
-        username = "Mnedo"
-        password = "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"
-        repo = Repo(os.getcwd())
-        origin = repo.remote(name="origin")
-    
-        remote = f"https://{username}:{password}@github.com/Mnedo/bookbot2.0.git"
-        os.system(f"git remote add bookbot2.0 {remote}")
-        origin.push()
-    
-        #repo.git.commit('-m', 'test commit', author='Mnedo <Basecam@yandex.ru>')
-        #origin = repo.remote(name='origin')
-        #origin.push()
-        """
+
+        # repo.git.commit('-m', 'test commit', author='Mnedo <Basecam@yandex.ru>')
+        # origin = repo.remote(name='origin')
+        # origin.push()
 
 
 def import_config(update, context):
