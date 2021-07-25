@@ -987,7 +987,6 @@ def contacts(update, context):
 
 
 def account(update, context):
-    save_config(context)
     context.chat_data['feedback'] = False
     context.chat_data['sure'] = False
     context.chat_data['keyboard'].reset()
