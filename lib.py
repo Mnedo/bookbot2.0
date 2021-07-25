@@ -41,6 +41,8 @@ class Event:
                     start_time=self.start_time,
                     end_time=self.end_time
                 )
+                self.service_id = db_sess.query(ServiceRes).filter(ServiceRes.id == service_id).first()
+                self.master_id = db_sess.query(MasterRes).filter(MasterRes.id == master_id).first()
             else:
                 event = EventRes(
                     user_id=self.user_id,

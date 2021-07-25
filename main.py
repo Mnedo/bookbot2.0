@@ -603,7 +603,7 @@ def handler(update, context):
     elif context.chat_data['sure']:
         context.chat_data['sure'] = False
         if update.message.text == 'Да':
-            event = Event(datetime.datetime.now(tz=context.bot_data['tz']), context.chat_data['keyboard'].timedate,
+            event = Event(datetime.datetime.strptime(datetime.datetime.now(tz=context.bot_data['tz']).strftime('%Y-%m-%d %H:%M:S'), '%Y-%m-%d %H:%M:S'), context.chat_data['keyboard'].timedate,
                           context.chat_data['keyboard'].timedate + datetime.timedelta(
                               minutes=int(60 * float(context.chat_data['keyboard'].service_id.duration))),
                           context.chat_data['user'].user_id, context.chat_data['keyboard'].master_id,
@@ -614,6 +614,7 @@ def handler(update, context):
             tmd = []
             for el in context.chat_data['user'].events:
                 ddt = datetime.datetime.now(tz=context.bot_data['tz'])
+                ddt = datetime.datetime.strptime(ddt.strftime('%Y-%m-%d %H:%M:S'), '%Y-%m-%d %H:%M:S')
                 elm = el.reg_time
                 delta = ddt - elm
                 if delta < datetime.timedelta(hours=1):
@@ -922,6 +923,8 @@ def variant(update, context):
         current_jobs = context.job_queue.get_jobs_by_name(str(update.message.chat_id) + str(el))
         for job in current_jobs:
             job.schedule_removal()
+        context.chat_data['user'].create_info(update, BANNEDUSERS,
+                                              SUPERUSERS, db_sess)
         context.bot.send_message(text='Запись отменена надеемся увидеть вас позже!', chat_id=update.message.chat_id,
                                  reply_markup=markup)
     else:
