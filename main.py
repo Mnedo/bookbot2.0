@@ -76,6 +76,13 @@ def start(update, context):
             context.job_queue.run_daily(analyze, time=datetime.time(20, 58, 59, 59),
                                         context=context)
             context.job_queue.run_daily(save_config, time=datetime.time(20, 59, 59, 59), context=context)
+        else:
+            context.job_queue.run_monthly(data_clear, when=datetime.time(1), day=28,
+                                          context=context)
+            context.job_queue.run_daily(analyze, time=datetime.time(20, 58, 59, 59),
+                                        context=context)
+            context.job_queue.run_daily(save_config, time=datetime.time(20, 59, 59, 59), context=context)
+
         if 'Главное меню' not in update['message']['text'] and 'main_menu' not in update['message']['text']:
             if 'user' not in context.chat_data.keys():
                 tz = datetime.timezone(datetime.timedelta(hours=3))
@@ -954,6 +961,16 @@ def variant(update, context):
 
 
 def sign_out(update, context):
+    global loaded
+
+    if not loaded:
+        load_config(context)
+        loaded = True
+        context.job_queue.run_monthly(data_clear, when=datetime.time(1), day=28,
+                                      context=context)
+        context.job_queue.run_daily(analyze, time=datetime.time(20, 58, 59, 59),
+                                    context=context)
+        context.job_queue.run_daily(save_config, time=datetime.time(20, 59, 59, 59), context=context)
     context.chat_data['feedback'] = False
     context.chat_data['sure'] = False
     context.chat_data['keyboard'].reset()
@@ -965,6 +982,16 @@ def sign_out(update, context):
 
 
 def helpp(update, context):
+    global loaded
+
+    if not loaded:
+        load_config(context)
+        loaded = True
+        context.job_queue.run_monthly(data_clear, when=datetime.time(1), day=28,
+                                      context=context)
+        context.job_queue.run_daily(analyze, time=datetime.time(20, 58, 59, 59),
+                                    context=context)
+        context.job_queue.run_daily(save_config, time=datetime.time(20, 59, 59, 59), context=context)
     context.chat_data['feedback'] = False
     context.chat_data['sure'] = False
     text = """Руководство для пользователей:
@@ -998,6 +1025,16 @@ def helpp(update, context):
 
 
 def contacts(update, context):
+    global loaded
+
+    if not loaded:
+        load_config(context)
+        loaded = True
+        context.job_queue.run_monthly(data_clear, when=datetime.time(1), day=28,
+                                      context=context)
+        context.job_queue.run_daily(analyze, time=datetime.time(20, 58, 59, 59),
+                                    context=context)
+        context.job_queue.run_daily(save_config, time=datetime.time(20, 59, 59, 59), context=context)
     context.chat_data['feedback'] = False
     context.chat_data['sure'] = False
     text = 'Немного о нас:\n'
@@ -1010,6 +1047,16 @@ def contacts(update, context):
 
 
 def account(update, context):
+    global loaded
+
+    if not loaded:
+        load_config(context)
+        loaded = True
+        context.job_queue.run_monthly(data_clear, when=datetime.time(1), day=28,
+                                      context=context)
+        context.job_queue.run_daily(analyze, time=datetime.time(20, 58, 59, 59),
+                                    context=context)
+        context.job_queue.run_daily(save_config, time=datetime.time(20, 59, 59, 59), context=context)
     context.chat_data['feedback'] = False
     context.chat_data['sure'] = False
     context.chat_data['keyboard'].reset()
@@ -1021,7 +1068,23 @@ def account(update, context):
 
 
 def admin(update, context):
+    global loaded
+
     try:
+        if not loaded:
+            load_config(context)
+            loaded = True
+            context.job_queue.run_monthly(data_clear, when=datetime.time(1), day=28,
+                                          context=context)
+            context.job_queue.run_daily(analyze, time=datetime.time(20, 58, 59, 59),
+                                        context=context)
+            context.job_queue.run_daily(save_config, time=datetime.time(20, 59, 59, 59), context=context)
+        else:
+            context.job_queue.run_monthly(data_clear, when=datetime.time(1), day=28,
+                                          context=context)
+            context.job_queue.run_daily(analyze, time=datetime.time(20, 58, 59, 59),
+                                        context=context)
+            context.job_queue.run_daily(save_config, time=datetime.time(20, 59, 59, 59), context=context)
         context.chat_data['user'].create_info(update, BANNEDUSERS, SUPERUSERS, db_sess)
         context.chat_data['keyboard'].reset()
         context.chat_data['keyboard'].create_admin('start')
@@ -1116,6 +1179,17 @@ def system(update, context):
             size = 0
             for el in os.listdir():
                 size += analize_files(el)
+
+            current_jobs = context.job_queue.jobs()
+            for job in current_jobs:
+                if job.name == 'save_config':
+                    dty = job.next_t
+            dt_n = datetime.datetime.strptime(
+                datetime.datetime.now(tz=context.bot_data['tz']).strftime('%Y-%m-%d %H:%M:%S'),
+                '%Y-%m-%d %H:%M:%S')
+            dt_t = datetime.datetime.strptime(dty.strftime('%Y-%m-%d %H:%M:%S'), '%Y-%m-%d %H:%M:%S')
+            delta = (dt_t - dt_n)
+            txt += 'Время до апдейта: {}\n'.format(delta)
             txt += 'Размер системы: {}\n'.format(human_read_format(size))
             txt += 'Размер мигрцаий: {}\n'.format(human_read_format(analize_files('migrations.json')))
             txt += '{} - количество пользователей\n'.format(len(context.bot_data['users']))
@@ -1123,7 +1197,9 @@ def system(update, context):
             context.bot.send_message(text=txt, chat_id=update.message.chat_id)
         else:
             context.bot.send_message(text='Не достаточно привелегий.', chat_id=update.message.chat_id)
-    except Exception:
+
+    except Exception as e:
+        print(e)
         context.bot.send_message(
             text='Произошла ошибка, попробуйте ещё раз. Если ошибка повторится, введите /start \nВы можете связаться с менеджером по команде /manager',
             chat_id=update.message.chat_id)
