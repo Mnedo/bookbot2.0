@@ -328,11 +328,11 @@ def save_config(context, update=''):
                 db_sess.add(notif)
         db_sess.commit()
 
-        repo = git.Repo(os.getcwd())
-        repo.git.add('database.db')
-        repo.git.commit('-m', 'test commit', author='Mnedo <Basecam@yandex.ru>')
-        origin = repo.remote(name="origin")
-        origin.push()
+        # repo = git.Repo(os.getcwd())
+        # repo.git.add('database.db')
+        # repo.git.commit('-m', 'test commit', author='Mnedo <Basecam@yandex.ru>')
+        # origin = repo.remote(name="origin")
+        # origin.push()
         if update:
             context.bot.send_message(text='Config сохранён. /import_config - чтобы посмотреть database.',
                                      chat_id=update.message.chat_id)

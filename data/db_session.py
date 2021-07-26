@@ -14,10 +14,18 @@ def global_init(db_file):
     if __factory:
         return
 
+        DATABASE_URL = os.environ['DATABASE_URL']
+        print(os.environ.keys())
+        user = os.environ["user"]
+        password = os.environ["password"]
+        hostname = os.environ["hostname"]
+        conn_str = f'postgresql+psycopg2://{user}:{password}@{hostname}/db_file.strip()'
+
     if not db_file or not db_file.strip():
         raise Exception("Необходимо указать файл базы данных.")
-
+    """
     conn_str = f'sqlite:///{db_file.strip()}?check_same_thread=False'
+    """
     print(f"Подключение к базе данных по адресу {conn_str}")
 
     engine = sa.create_engine(conn_str, echo=False)
