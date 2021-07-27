@@ -213,24 +213,27 @@ def load_config(context, update=''):
                 event_load_info.user_id, event_load_info.master_id, event_load_info.service_id, db_sess,
                 event_load_info.event_id)
             db_sess.delete(event_load_info)
+        db_sess.commit()
         masters_to_append = []
         for master_load_info in masters:
             masters_to_append.append(
                 [(master_load_info.mastername, master_load_info.calendarId, db_sess),
                  (master_load_info.services.split(';') if master_load_info.services else master_load_info.services)])
             db_sess.delete(master_load_info)
+        db_sess.commit()
         services_res = {}
         for service_load_info in services:
             info = [service_load_info.servicename, db_sess, service_load_info.master_id, service_load_info.duration]
             services_res[service_load_info.id] = info
             db_sess.delete(service_load_info)
+        db_sess.commit()
         for mst in masters_to_append:
             master_obj = Master(*mst[0])
             master.append(master_obj)
             for service_id in mst[1]:
                 info = services_res[int(service_id)]
                 master_obj.add_service(Service(info[0], info[1], master_obj, info[3]), db_sess)
-
+        db_sess.commit()
         user_info = []
         for user_load_ifo in users:
             user_info.append(
@@ -239,6 +242,7 @@ def load_config(context, update=''):
                  user_load_ifo.is_banned,
                  user_load_ifo.phone, user_load_ifo.reg_time, user_load_ifo.events])
             db_sess.delete(user_load_ifo)
+        db_sess.commit()
         if 'users' not in context.bot_data.keys():
             context.bot_data['users'] = {}
         for user_ in user_info:
@@ -248,7 +252,9 @@ def load_config(context, update=''):
                 for ev_id in user_[10].split(';'):
                     ev = Event(*event_result[int(ev_id)], special_id=True)
                     user.add_event(ev, db_sess)
+
             context.bot_data['users'][int(user_[2])] = user
+        db_sess.commit()
         if 'feedbacks' not in context.bot_data.keys():
             context.bot_data['feedbacks'] = {}
         for fdb in feedbacks:
