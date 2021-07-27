@@ -9,7 +9,7 @@ class EventRes(SqlAlchemyBase, UserMixin, SerializerMixin):
     __tablename__ = 'events'
     id = sqlalchemy.Column(sqlalchemy.Integer,
                            primary_key=True, autoincrement=True)
-    user_id = sqlalchemy.Column(sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"))
+    user_id = sqlalchemy.Column(sqlalchemy.Integer, sqlalchemy.ForeignKey("users.user_id"))
     master_id = sqlalchemy.Column(sqlalchemy.Integer, sqlalchemy.ForeignKey("masters.id"))
     service_id = sqlalchemy.Column(sqlalchemy.Integer, sqlalchemy.ForeignKey("services.id"))
     has_notified = sqlalchemy.Column(sqlalchemy.BOOLEAN, default=False)
