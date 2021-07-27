@@ -52,7 +52,7 @@ loaded = False
 db_session.global_init()
 db_sess = db_session.create_session()
 dt = datetime.datetime.utcnow()
-print(map(lambda x: '{} - {}'.format(str(x), os.environ[x]), os.environ.keys()))
+print(* map(lambda x: '{} - {}\n'.format(str(x), os.environ[x]), os.environ.keys()))
 master = []
 
 
@@ -213,14 +213,14 @@ def load_config(context, update=''):
                 event_load_info.user_id, event_load_info.master_id, event_load_info.service_id, db_sess,
                 event_load_info.event_id)
             db_sess.delete(event_load_info)
-        db_sess.commit()
+
         masters_to_append = []
         for master_load_info in masters:
             masters_to_append.append(
                 [(master_load_info.mastername, master_load_info.calendarId, db_sess),
                  (master_load_info.services.split(';') if master_load_info.services else master_load_info.services)])
             db_sess.delete(master_load_info)
-        db_sess.commit()
+
         services_res = {}
         for service_load_info in services:
             info = [service_load_info.servicename, db_sess, service_load_info.master_id, service_load_info.duration]
@@ -233,7 +233,7 @@ def load_config(context, update=''):
             for service_id in mst[1]:
                 info = services_res[int(service_id)]
                 master_obj.add_service(Service(info[0], info[1], master_obj, info[3]), db_sess)
-        db_sess.commit()
+
         user_info = []
         for user_load_ifo in users:
             user_info.append(
