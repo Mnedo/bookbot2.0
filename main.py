@@ -206,33 +206,41 @@ def load_config(context, update=''):
             context.bot_data['tz_int'] = 3
             context.bot_data['tz'] = datetime.timezone(datetime.timedelta(hours=int(context.bot_data['tz_int'])))
         event_result = {}
-
+        print('start loading event_info')
         for event_load_info in events:
             event_result[event_load_info.id] = (
                 event_load_info.reg_time, event_load_info.start_time, event_load_info.end_time,
                 event_load_info.user_id, event_load_info.master_id, event_load_info.service_id, db_sess,
                 event_load_info.event_id)
             db_sess.delete(event_load_info)
+        print('end loading event_info ')
+        print('start loading service_info')
         services_res = {}
         for service_load_info in services:
             info = [service_load_info.servicename, db_sess, service_load_info.master_id, service_load_info.duration]
             services_res[service_load_info.id] = info
             db_sess.delete(service_load_info)
         masters_to_append = []
+        print('end loading service_info')
+        print('start loading masters_info')
         for master_load_info in masters:
             masters_to_append.append(
                 [(master_load_info.mastername, master_load_info.calendarId, db_sess),
                  (master_load_info.services.split(';') if master_load_info.services else master_load_info.services)])
             db_sess.delete(master_load_info)
-
+        print('end loading masters_info')
         db_sess.commit()
+        print('commit db')
+        print('start creating masters')
+        print(len(db_sess.query(MasterRes).all()))
         for mst in masters_to_append:
             master_obj = Master(*mst[0])
             master.append(master_obj)
             for service_id in mst[1]:
                 info = services_res[int(service_id)]
+                print('add_service')
                 master_obj.add_service(Service(info[0], info[1], master_obj, info[3]), db_sess)
-
+        print('end creating masters')
         user_info = []
         for user_load_ifo in users:
             user_info.append(
