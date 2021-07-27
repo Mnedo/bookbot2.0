@@ -15,7 +15,7 @@ def global_init():
     if __factory:
         return
 
-    conn_str = os.environ["DATABASE_URL"]
+    conn_str = 'postgresql' + str(os.environ["DATABASE_URL"]).split('postgres')[1]
 
     print(f"Подключение к базе данных по адресу {conn_str}")
 
