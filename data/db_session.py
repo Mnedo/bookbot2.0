@@ -15,7 +15,7 @@ def global_init():
     if __factory:
         return
 
-    conn_str = str(os.environ["DB_URL"]
+    conn_str = os.environ["DB_URL"]
     # conn_str = 'postgresql://ftdnlgfgkosezq:7a0009560ec3deac4c1b553cd1f7c5a381e786a4c5f1c5ca69c03b5c18e48003@ec2-52-19-170-215.eu-west-1.compute.amazonaws.com:5432/deeltkp3h0un4n'
     print(f"Подключение к базе данных по адресу {conn_str}")
 
