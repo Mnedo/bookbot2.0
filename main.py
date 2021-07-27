@@ -1201,7 +1201,6 @@ def system(update, context):
             delta = (dt_t - dt_n)
             txt += 'Время до апдейта: {}\n'.format(delta)
             txt += 'Размер системы: {}\n'.format(human_read_format(size))
-            txt += 'Размер мигрцаий: {}\n'.format(human_read_format(analize_files('migrations.json')))
             txt += '{} - количество пользователей\n'.format(len(context.bot_data['users']))
             txt += '{}/{} записей были сделаны ботом.'.format(context.bot_data['booked'], context.bot_data['all_books'])
             context.bot.send_message(text=txt, chat_id=update.message.chat_id)
