@@ -9,7 +9,7 @@ from sqlalchemy import orm
 class NotifRes(SqlAlchemyBase, UserMixin, SerializerMixin):
     __tablename__ = 'notifications'
     id = sqlalchemy.Column(sqlalchemy.Integer,
-                           primary_key=True, autoincrement=True)
+                           primary_key=True)
     context = sqlalchemy.Column(sqlalchemy.String)
     name = sqlalchemy.Column(sqlalchemy.String)
     trigger = sqlalchemy.Column(sqlalchemy.DateTime)

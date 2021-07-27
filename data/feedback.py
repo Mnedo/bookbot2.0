@@ -9,7 +9,7 @@ from sqlalchemy import orm
 class Feedback(SqlAlchemyBase, UserMixin, SerializerMixin):
     __tablename__ = 'feedbacks'
     id = sqlalchemy.Column(sqlalchemy.Integer,
-                           primary_key=True, autoincrement=True)
+                           primary_key=True)
     user_id = sqlalchemy.Column(sqlalchemy.Integer, sqlalchemy.ForeignKey("users.user_id"))
     content = sqlalchemy.Column(sqlalchemy.String)
 

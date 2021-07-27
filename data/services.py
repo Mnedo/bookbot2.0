@@ -9,7 +9,7 @@ from sqlalchemy import orm
 class ServiceRes(SqlAlchemyBase, UserMixin, SerializerMixin):
     __tablename__ = 'services'
     id = sqlalchemy.Column(sqlalchemy.Integer,
-                           primary_key=True, autoincrement=True)
+                           primary_key=True)
     servicename = sqlalchemy.Column(sqlalchemy.String)
     duration = sqlalchemy.Column(sqlalchemy.Float, default=1.0)
     master_id = sqlalchemy.Column(sqlalchemy.Integer, sqlalchemy.ForeignKey("masters.id"))

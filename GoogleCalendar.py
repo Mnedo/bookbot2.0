@@ -42,7 +42,7 @@ class GoogleCalendar(object):
         end_time = end_time.isoformat() + '+{}:00'.format(self.tz_str())
         info += '\nСделано в telegram'
         event = {
-            'summary': ev.service_id.servicename + ' | ' + str(user.get_sign()),
+            'summary': ev.service_id.service_name + ' | ' + str(user.get_sign()),
             'description': info,
             'start': {
                 'dateTime': start_time,

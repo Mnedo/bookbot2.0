@@ -9,7 +9,7 @@ from sqlalchemy import orm
 class MasterRes(SqlAlchemyBase, UserMixin, SerializerMixin):
     __tablename__ = 'masters'
     id = sqlalchemy.Column(sqlalchemy.Integer,
-                           primary_key=True, autoincrement=True)
+                           primary_key=True)
     mastername = sqlalchemy.Column(sqlalchemy.String)
     calendarId = sqlalchemy.Column(sqlalchemy.String)
     duration = sqlalchemy.Column(sqlalchemy.Float, default=1.0)

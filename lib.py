@@ -15,11 +15,20 @@ class AccessError(Exception):
                 chat_id=args[1])
 
 
+def create_id(model, db_sess):
+    id = db_sess.query(model).all()
+    if id:
+        return int(id[-1].id) + 1
+    else:
+        return 1
+
+
 class Event:
     def __init__(self, reg_time, start_time, end_time, user_id, master_id, service_id, db_sess, evid='',
                  has_notified=False,
                  db=True, special_id=False):
-        self.id = len(db_sess.query(EventRes).all()) + 1
+
+        self.id = create_id(EventRes, db_sess)
         self.reg_time = reg_time
         self.start_time = start_time
         self.end_time = end_time
@@ -28,11 +37,14 @@ class Event:
         self.has_notified = has_notified
         self.service_id = service_id
         self.event_id = ''
+        if evid:
+            self.event_id = evid
         self.format = '%Y-%m-%d %H:%M'
 
         if db:
             if special_id:
                 event = EventRes(
+                    id=create_id(EventRes, db_sess),
                     user_id=self.user_id,
                     master_id=self.master_id,
                     service_id=self.service_id,
@@ -45,6 +57,7 @@ class Event:
                 self.master_id = db_sess.query(MasterRes).filter(MasterRes.id == master_id).first()
             else:
                 event = EventRes(
+                    id=create_id(EventRes, db_sess),
                     user_id=self.user_id,
                     master_id=self.master_id.id,
                     service_id=self.service_id.id,
@@ -82,7 +95,7 @@ class Event:
         date = self.start_time.strftime('%d.%m.%Y')
         starttime = self.start_time.strftime('%H:%M')
         endtime = self.end_time.strftime('%H:%M')
-        txt = date + ' в ' + starttime + ' - ' + endtime + ' - ' + self.service_id.servicename
+        txt = date + ' в ' + starttime + ' - ' + endtime + ' - ' + self.service_id.service_name
         return txt
 
     def set_eventid(self, id, db_sess):
@@ -96,7 +109,7 @@ class User:
     def __init__(self, update, tz, tzn, db_sess, db=True, load=False, user_id='', name='', surname='', username='',
                  is_admin='', is_banned='', phone='', reg_time=''):
         if load:
-            self.id = len(db_sess.query(UserRes).all()) + 1
+            self.id = create_id(UserRes, db_sess)
             self.user_id = user_id
             self.name = name
             self.surname = surname
@@ -109,7 +122,7 @@ class User:
             self.tzn = tzn
             self.reg_time = reg_time
         else:
-            self.id = len(db_sess.query(UserRes).all()) + 1
+            self.id = create_id(UserRes, db_sess)
             self.user_id = update.message.chat.id
             self.name = update.message.chat.first_name
             self.surname = update.message.chat.last_name if update.message.chat.last_name else ''
@@ -243,13 +256,16 @@ ID в системе: {}
 
 
 class Service:
-    def __init__(self, service_name, db_sess, master, duration=1.0, db=True):
-        self.id = len(db_sess.query(ServiceRes).all()) + 1
+    def __init__(self, service_name, db_sess, master, duration=1.0, db=True, id=''):
+        self.id = create_id(ServiceRes, db_sess)
+        if id:
+            self.id = id
         self.master = master
         self.service_name = service_name
         self.duration = float(duration)
         if db:
             service = ServiceRes(
+                id=create_id(ServiceRes, db_sess),
                 servicename=self.service_name,
                 duration=float(self.duration),
                 master_id=self.master.id
@@ -263,13 +279,14 @@ class Service:
 
 class Master:
     def __init__(self, mastername, calendarId, db_sess, duration=1, db=True):
-        self.id = len(db_sess.query(MasterRes).all()) + 1
+        self.id = create_id(MasterRes, db_sess)
         self.name = mastername
         self.calendarId = calendarId
         self.duration = duration
         self.services = []
         if db:
             master = MasterRes(
+                id=create_id(MasterRes, db_sess),
                 mastername=self.name,
                 calendarId=self.calendarId,
                 duration=float(self.duration),

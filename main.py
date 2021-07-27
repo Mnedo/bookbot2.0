@@ -17,7 +17,7 @@ from data.notification import NotifRes
 from data.services import ServiceRes
 from data.system import System
 from data.users import UserRes
-from lib import Buttons, AccessError, Master, Event, User, Service
+from lib import Buttons, AccessError, Master, Event, User, Service, create_id
 from GoogleCalendar import GoogleCalendar
 
 settings = open('setup.json', encoding='utf-8')
@@ -54,6 +54,7 @@ db_sess = db_session.create_session()
 dt = datetime.datetime.utcnow()
 print(*map(lambda x: '{} - {}\n'.format(str(x), os.environ[x]), os.environ.keys()))
 master = []
+
 
 
 # master = [Master('Писхолог', '6ogmjjrvnn9c7qjco3pbvnck3s@group.calendar.google.com', db_sess, 1)]
@@ -208,38 +209,39 @@ def load_config(context, update=''):
         event_result = {}
         print('start loading event_info')
         for event_load_info in events:
-            event_result[event_load_info.id] = (
+            event_result[event_load_info.id] = [(
                 event_load_info.reg_time, event_load_info.start_time, event_load_info.end_time,
                 event_load_info.user_id, event_load_info.master_id, event_load_info.service_id, db_sess,
-                event_load_info.event_id)
-            db_sess.delete(event_load_info)
+                event_load_info.event_id), event_load_info.id]
+
         print('end loading event_info ')
         print('start loading service_info')
         services_res = {}
         for service_load_info in services:
-            info = [service_load_info.servicename, db_sess, service_load_info.master_id, service_load_info.duration]
+            info = [service_load_info.servicename, db_sess, service_load_info.master_id, service_load_info.duration, service_load_info.id]
             services_res[service_load_info.id] = info
-            db_sess.delete(service_load_info)
+
         masters_to_append = []
         print('end loading service_info')
         print('start loading masters_info')
         for master_load_info in masters:
             masters_to_append.append(
                 [(master_load_info.mastername, master_load_info.calendarId, db_sess),
-                 (master_load_info.services.split(';') if master_load_info.services else master_load_info.services)])
-            db_sess.delete(master_load_info)
+                 (master_load_info.services.split(';') if master_load_info.services else master_load_info.services), master_load_info.id])
+
         print('end loading masters_info')
         db_sess.commit()
         print('commit db')
         print('start creating masters')
         print(len(db_sess.query(MasterRes).all()))
         for mst in masters_to_append:
-            master_obj = Master(*mst[0])
+            master_obj = Master(*mst[0], db=False)
+            master_obj.id = mst[-1]
             master.append(master_obj)
             for service_id in mst[1]:
                 info = services_res[int(service_id)]
                 print('add_service')
-                master_obj.add_service(Service(info[0], info[1], master_obj, info[3]), db_sess)
+                master_obj.add_service(Service(info[0], info[1], master_obj, info[3], db=False, id=info[-1]), db_sess)
         print('end creating masters')
         user_info = []
         for user_load_ifo in users:
@@ -247,17 +249,31 @@ def load_config(context, update=''):
                 [context.bot_data['tz'], context.bot_data['tz_int'], user_load_ifo.user_id, user_load_ifo.name,
                  user_load_ifo.surname, user_load_ifo.user_name, user_load_ifo.is_admin,
                  user_load_ifo.is_banned,
-                 user_load_ifo.phone, user_load_ifo.reg_time, user_load_ifo.events])
-            db_sess.delete(user_load_ifo)
+                 user_load_ifo.phone, user_load_ifo.reg_time, user_load_ifo.events, user_load_ifo.id])
+
         db_sess.commit()
         if 'users' not in context.bot_data.keys():
             context.bot_data['users'] = {}
         for user_ in user_info:
             user = User('', user_[0], user_[1], db_sess, load=True, user_id=user_[2], name=user_[3], surname=user_[4],
-                        username=user_[5], is_admin=user_[6], is_banned=user_[7], phone=user_[8], reg_time=user_[9])
+                        username=user_[5], is_admin=user_[6], is_banned=user_[7], phone=user_[8], reg_time=user_[9], db=False)
+            user.id = user_[-1]
             if user_[10]:
                 for ev_id in user_[10].split(';'):
-                    ev = Event(*event_result[int(ev_id)], special_id=True)
+                    ev = Event(*event_result[int(ev_id)][0], special_id=True, db=False)
+                    f = ''
+                    ff = ''
+                    for mst in master:
+                        if mst.id == ev.master_id:
+                            f = mst
+                            break
+                    for srv in f.services:
+                        if srv.id == ev.service_id:
+                            ff = srv
+                            break
+                    ev.service_id = ff
+                    ev.master_id = f
+                    ev.id = event_result[int(ev_id)][1]
                     user.add_event(ev, db_sess)
 
             context.bot_data['users'][int(user_[2])] = user
@@ -320,6 +336,7 @@ def save_config(context, update=''):
         for user_id in context.bot_data['feedbacks']:
             if len(context.bot_data['feedbacks'][user_id]) == 1:
                 feedback = Feedback(
+                    id=create_id(Feedback, db_sess),
                     user_id=int(user_id),
                     content=context.bot_data['feedbacks'][user_id][0]
                 )
@@ -327,6 +344,7 @@ def save_config(context, update=''):
             else:
                 for com in context.bot_data['feedbacks'][user_id]:
                     feedback = Feedback(
+                        id=create_id(Feedback, db_sess),
                         user_id=int(user_id),
                         content=com
                     )
@@ -336,6 +354,7 @@ def save_config(context, update=''):
             if '.' in job.name:
                 ctx = job.context
                 notif = NotifRes(
+                    id=create_id(NotifRes, db_sess),
                     context=ctx,
                     name=job.job.name,
                     trigger=job.job.next_run_time,
@@ -802,17 +821,12 @@ def handler(update, context):
                                      chat_id=update.message.chat_id)
     elif not context.chat_data['keyboard'].service_id and context.chat_data['app']:
         context.chat_data['book'] = False
-        ftr = list(map(lambda x: int(x),
-                       ';'.join(list(map(lambda x: str(x.id), context.chat_data['keyboard'].master_id.services))).split(
-                           ';')))
-        svss = []
-        for id in ftr:
-            qw = db_sess.query(ServiceRes).filter(ServiceRes.id == id).first()
-            if qw:
-                svss.append(qw)
-        for service in svss:
-            if service.servicename == update.message.text:
-                context.chat_data['keyboard'].service_id = service
+        for mst in master:
+            if mst.id == context.chat_data['keyboard'].master_id.id:
+                for srv in mst.services:
+                    if srv.service_name == update.message.text:
+                        context.chat_data['keyboard'].service_id = srv
+                        break
         if context.chat_data['keyboard'].service_id:
             context.chat_data['keyboard'].create('appointment')
             text = 'Выберите день, в который Вы сможете к нам прийти'
@@ -947,7 +961,7 @@ def variant(update, context):
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=True)
 
         for el in context.chat_data['user'].events:
-            if el.start_time == dtm_start and el.end_time == dtm_end and name == el.service_id.servicename:
+            if el.start_time == dtm_start and el.end_time == dtm_end and name == el.service_id.service_name:
                 master_f = el.master_id
                 del context.chat_data['user'].events[context.chat_data['user'].events.index(el)]
                 break
