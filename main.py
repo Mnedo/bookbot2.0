@@ -87,6 +87,7 @@ def start(update, context):
                 if 'tz' in context.bot_data.keys():
                     tz = context.bot_data['tz']
                     tzn = context.bot_data['tz_int']
+
                 if 'users' not in context.bot_data.keys():
                     context.chat_data['user'] = User(update, tz, tzn, db_sess)
                     context.chat_data['user'].create_info(update, BANNEDUSERS,
@@ -199,6 +200,11 @@ def load_config(context, update=''):
                         SUPERUSERS.append(int(user_id))
             context.bot_data['info'] = {'description': system.about,
                                         'number': system.phone, 'address': system.title}
+        else:
+            context.bot_data['all_books'] = 0
+            context.bot_data['booked'] = 0
+            context.bot_data['tz_int'] = 3
+            context.bot_data['tz'] = datetime.timezone(datetime.timedelta(hours=int(context.bot_data['tz_int'])))
         event_result = {}
 
         for event_load_info in events:
