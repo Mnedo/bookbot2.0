@@ -52,7 +52,7 @@ loaded = False
 db_session.global_init()
 db_sess = db_session.create_session()
 dt = datetime.datetime.utcnow()
-print(os.environ.keys())
+print(map(lambda x: '{} - {}'.format(str(x), os.environ[x]), os.environ.keys()))
 master = []
 
 
