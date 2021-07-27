@@ -20,46 +20,49 @@ from data.users import UserRes
 from lib import Buttons, AccessError, Master, Event, User, Service, create_id
 from GoogleCalendar import GoogleCalendar
 
+type = 'HEROKU'
+if "COMPUTERNAME" in os.environ.keys():
+    if os.environ["COMPUTERNAME"] == "DESKTOP-ETMPL7P":
+        type = 'PC'
+
 settings = open('setup.json', encoding='utf-8')
 data = json.load(settings)
 REQUEST_KWARGS = data['REQUEST_KWARGS']
-TOKEN = data['TOKEN']
-account_name = data['SERVICE_ACCOUNT']
-# account_name = 'test-155@innate-actor-318707.iam.gserviceaccount.com'
-# TOKEN = "1765029934:AAG3PWNX_bBlUtllnaK6ZWKH9fMaEp8fKrs"
-# REQUEST_KWARGS = {
-#     'urllib3_proxy_kwargs': {
-#         'assert_hostname': 'False',
-#         'cert_reqs': 'CERT_NONE',
-#         'username': 'user',
-#         'password': 'password'}
-# }
+if type == 'PC':
+    TOKEN = data['TOKEN']
+    account_name = data['SERVICE_ACCOUNT']
+    day = [data['START_DAY'], data['END_DAY']]
+    notification = data['NOTIFICATION_TIME']
+    phone = data['MANAGER']['phone']
+    first_name = data['MANAGER']['first_name']
+    last_name = data['MANAGER']['last_name']
+    start_time = data['START_TIME']
+    end_time = data['END_TIME']
+else:
+    TOKEN = os.environ['TOKEN']
+    account_name = os.environ['SERVICE_ACCOUNT']
+    day = [os.environ['START_DAY'], os.environ['END_DAY']]
+    notification = os.environ['NOTIFICATION_TIME']
+    phone = os.environ['MANAGER_PHONE']
+    first_name = os.environ['MANAGER_FIRSTNAME']
+    last_name = os.environ['MANAGER_LASTNAME']
+    start_time = os.environ['START_TIME']
+    end_time = os.environ['END_TIME']
+
 updater = Updater(TOKEN, use_context=True,
                   request_kwargs=REQUEST_KWARGS)
-day = [data['START_DAY'], data['END_DAY']]
 
-notification = data['NOTIFICATION_TIME']
 SUPERUSERS = data['SUPERUSERS']
 BANNEDUSERS = data['BANNEDUSERS']
-phone = data['MANAGER']['phone']
-first_name = data['MANAGER']['first_name']
-last_name = data['MANAGER']['last_name']
-start_time = data['START_TIME']
-end_time = data['END_TIME']
+
 settings.close()
 calendar = GoogleCalendar()
 loaded = False
 db_session.global_init()
 db_sess = db_session.create_session()
 dt = datetime.datetime.utcnow()
-print(*map(lambda x: '{} - {}\n'.format(str(x), os.environ[x]), os.environ.keys()))
+
 master = []
-
-
-
-# master = [Master('Писхолог', '6ogmjjrvnn9c7qjco3pbvnck3s@group.calendar.google.com', db_sess, 1)]
-# master[0].add_service(Service('Поговорим', db_sess, master[0]), db_sess)
-# master[0].add_service(Service('Будем рисуем', db_sess, master[0], 2), db_sess)
 
 
 def start(update, context):
@@ -107,9 +110,6 @@ def start(update, context):
                 context.bot_data['tz_int'] = 3
                 context.bot_data['booked'] = 0
                 context.bot_data['all_books'] = 0
-
-                # context.job_queue.run_daily(analyze, time=datetime.time(23, 58), context=context)
-                # context.job_queue.run_daily(backup, time=datetime.time(23, 59), context=context)
                 context.bot_data['users'] = {context.chat_data['user'].user_id: context.chat_data['user']}
             else:
                 if context.chat_data['user'].user_id not in context.bot_data['users'].keys():
@@ -207,42 +207,37 @@ def load_config(context, update=''):
             context.bot_data['tz_int'] = 3
             context.bot_data['tz'] = datetime.timezone(datetime.timedelta(hours=int(context.bot_data['tz_int'])))
         event_result = {}
-        print('start loading event_info')
+
         for event_load_info in events:
             event_result[event_load_info.id] = [(
                 event_load_info.reg_time, event_load_info.start_time, event_load_info.end_time,
                 event_load_info.user_id, event_load_info.master_id, event_load_info.service_id, db_sess,
                 event_load_info.event_id), event_load_info.id]
 
-        print('end loading event_info ')
-        print('start loading service_info')
         services_res = {}
         for service_load_info in services:
-            info = [service_load_info.servicename, db_sess, service_load_info.master_id, service_load_info.duration, service_load_info.id]
+            info = [service_load_info.servicename, db_sess, service_load_info.master_id, service_load_info.duration,
+                    service_load_info.id]
             services_res[service_load_info.id] = info
 
         masters_to_append = []
-        print('end loading service_info')
-        print('start loading masters_info')
+
         for master_load_info in masters:
             masters_to_append.append(
                 [(master_load_info.mastername, master_load_info.calendarId, db_sess),
-                 (master_load_info.services.split(';') if master_load_info.services else master_load_info.services), master_load_info.id])
+                 (master_load_info.services.split(';') if master_load_info.services else master_load_info.services),
+                 master_load_info.id])
 
-        print('end loading masters_info')
         db_sess.commit()
-        print('commit db')
-        print('start creating masters')
-        print(len(db_sess.query(MasterRes).all()))
         for mst in masters_to_append:
             master_obj = Master(*mst[0], db=False)
             master_obj.id = mst[-1]
             master.append(master_obj)
             for service_id in mst[1]:
                 info = services_res[int(service_id)]
-                print('add_service')
+
                 master_obj.add_service(Service(info[0], info[1], master_obj, info[3], db=False, id=info[-1]), db_sess)
-        print('end creating masters')
+
         user_info = []
         for user_load_ifo in users:
             user_info.append(
@@ -256,7 +251,8 @@ def load_config(context, update=''):
             context.bot_data['users'] = {}
         for user_ in user_info:
             user = User('', user_[0], user_[1], db_sess, load=True, user_id=user_[2], name=user_[3], surname=user_[4],
-                        username=user_[5], is_admin=user_[6], is_banned=user_[7], phone=user_[8], reg_time=user_[9], db=False)
+                        username=user_[5], is_admin=user_[6], is_banned=user_[7], phone=user_[8], reg_time=user_[9],
+                        db=False)
             user.id = user_[-1]
             if user_[10]:
                 for ev_id in user_[10].split(';'):
@@ -306,6 +302,8 @@ def load_config(context, update=''):
         if update:
             context.bot.send_message(text='Config применён к системе.',
                                      chat_id=update.message.chat_id)
+        else:
+            os.system('heroku ps:restart worker.1')
 
 
 def save_config(context, update=''):
@@ -364,18 +362,9 @@ def save_config(context, update=''):
                 db_sess.add(notif)
         db_sess.commit()
 
-        # repo = git.Repo(os.getcwd())
-        # repo.git.add('database.db')
-        # repo.git.commit('-m', 'test commit', author='Mnedo <Basecam@yandex.ru>')
-        # origin = repo.remote(name="origin")
-        # origin.push()
         if update:
             context.bot.send_message(text='Config сохранён. /import_config - чтобы посмотреть database.',
                                      chat_id=update.message.chat_id)
-
-        # repo.git.commit('-m', 'test commit', author='Mnedo <Basecam@yandex.ru>')
-        # origin = repo.remote(name='origin')
-        # origin.push()
 
 
 def import_config(update, context):
@@ -609,7 +598,7 @@ def correct_mobile(message):
         else:
             return False
     else:
-        if message[0] == '8':
+        if message[0] in ['8', '7']:
             if len(message) == 11:
                 return True
             else:
@@ -1589,7 +1578,8 @@ def send_feedbacks(update, context):
                 for key in context.bot_data['feedbacks']:
                     for post in context.bot_data['feedbacks'][key]:
                         text += post + '\n'
-                    text += str(context.bot_data['users'][key]) + '\n\n'
+                    text += '{} #id{}\n\n'.format(context.bot_data['users'][key].name,
+                                                  context.bot_data['users'][key].user_id)
             else:
                 text = 'Отзывы отсутствуют'
             context.bot.send_message(text=text, chat_id=update.message.chat_id)
