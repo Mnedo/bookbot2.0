@@ -19,5 +19,5 @@ class System(SqlAlchemyBase, UserMixin, SerializerMixin):
     superusers = sqlalchemy.Column(sqlalchemy.String)
     title = sqlalchemy.Column(sqlalchemy.String)
     phone = sqlalchemy.Column(sqlalchemy.String)
-    about = sqlalchemy.Column(sqlalchemy.CHAR)
+    about = sqlalchemy.Column(sqlalchemy.VARCHAR)
 

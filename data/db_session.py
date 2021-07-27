@@ -8,24 +8,14 @@ SqlAlchemyBase = dec.declarative_base()
 __factory = None
 
 
-def global_init(db_file):
+def global_init():
     global __factory
 
     if __factory:
         return
 
-        DATABASE_URL = os.environ['DATABASE_URL']
-        print(os.environ.keys())
-        user = os.environ["user"]
-        password = os.environ["password"]
-        hostname = os.environ["hostname"]
-        conn_str = f'postgresql+psycopg2://{user}:{password}@{hostname}/db_file.strip()'
+    conn_str = 'postgresql://ftdnlgfgkosezq:7a0009560ec3deac4c1b553cd1f7c5a381e786a4c5f1c5ca69c03b5c18e48003@ec2-52-19-170-215.eu-west-1.compute.amazonaws.com:5432/deeltkp3h0un4n'
 
-    if not db_file or not db_file.strip():
-        raise Exception("Необходимо указать файл базы данных.")
-    """
-    conn_str = f'sqlite:///{db_file.strip()}?check_same_thread=False'
-    """
     print(f"Подключение к базе данных по адресу {conn_str}")
 
     engine = sa.create_engine(conn_str, echo=False)

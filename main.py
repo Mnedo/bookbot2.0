@@ -48,14 +48,11 @@ start_time = data['START_TIME']
 end_time = data['END_TIME']
 settings.close()
 calendar = GoogleCalendar()
-if os.path.exists('database.db'):
-    loaded = False
-else:
-    loaded = True
-db_session.global_init("database.db")
+loaded = False
+db_session.global_init()
 db_sess = db_session.create_session()
 dt = datetime.datetime.utcnow()
-
+os.environ.keys()
 master = []
 
 
@@ -187,20 +184,21 @@ def load_config(context, update=''):
         feedbacks = db_sess.query(Feedback).all()
         events = db_sess.query(EventRes).all()
         # system load
-        context.bot_data['all_books'] = system.all_posts
-        context.bot_data['booked'] = system.telegram_posts
-        context.bot_data['tz_int'] = system.timezone_int
-        context.bot_data['tz'] = datetime.timezone(datetime.timedelta(hours=int(system.timezone_int)))
-        if system.banned_users:
-            for user_id in system.banned_users.split(';'):
-                if int(user_id) not in BANNEDUSERS:
-                    BANNEDUSERS.append(int(user_id))
-        if system.superusers:
-            for user_id in system.superusers.split(';'):
-                if int(user_id) not in SUPERUSERS:
-                    SUPERUSERS.append(int(user_id))
-        context.bot_data['info'] = {'description': system.about,
-                                    'number': system.phone, 'address': system.title}
+        if system:
+            context.bot_data['all_books'] = system.all_posts
+            context.bot_data['booked'] = system.telegram_posts
+            context.bot_data['tz_int'] = system.timezone_int
+            context.bot_data['tz'] = datetime.timezone(datetime.timedelta(hours=int(system.timezone_int)))
+            if system.banned_users:
+                for user_id in system.banned_users.split(';'):
+                    if int(user_id) not in BANNEDUSERS:
+                        BANNEDUSERS.append(int(user_id))
+            if system.superusers:
+                for user_id in system.superusers.split(';'):
+                    if int(user_id) not in SUPERUSERS:
+                        SUPERUSERS.append(int(user_id))
+            context.bot_data['info'] = {'description': system.about,
+                                        'number': system.phone, 'address': system.title}
         event_result = {}
 
         for event_load_info in events:

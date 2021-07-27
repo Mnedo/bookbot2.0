@@ -20,4 +20,5 @@ class UserRes(SqlAlchemyBase, UserMixin, SerializerMixin):
     reg_time = sqlalchemy.Column(sqlalchemy.DateTime)
     events = sqlalchemy.Column(sqlalchemy.String) # id_1;id_2
     events_res = orm.relation("EventRes", back_populates='user')
+    feedback_res = orm.relation("Feedback", back_populates='user')
 
