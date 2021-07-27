@@ -2,6 +2,7 @@ import sqlalchemy as sa
 import sqlalchemy.orm as orm
 from sqlalchemy.orm import Session
 import sqlalchemy.ext.declarative as dec
+import os
 
 SqlAlchemyBase = dec.declarative_base()
 
@@ -14,7 +15,7 @@ def global_init():
     if __factory:
         return
 
-    conn_str = 'postgresql://ftdnlgfgkosezq:7a0009560ec3deac4c1b553cd1f7c5a381e786a4c5f1c5ca69c03b5c18e48003@ec2-52-19-170-215.eu-west-1.compute.amazonaws.com:5432/deeltkp3h0un4n'
+    conn_str = os.environ["DATABASE_URL"]
 
     print(f"Подключение к базе данных по адресу {conn_str}")
 
