@@ -52,7 +52,7 @@ loaded = False
 db_session.global_init()
 db_sess = db_session.create_session()
 dt = datetime.datetime.utcnow()
-os.environ.keys()
+print(os.environ.keys())
 master = []
 
 
@@ -70,9 +70,9 @@ def start(update, context):
             loaded = True
             context.job_queue.run_monthly(data_clear, when=datetime.time(1), day=28,
                                           context=context)
-            context.job_queue.run_daily(analyze, time=datetime.time(20, 58, 59, 59),
+            context.job_queue.run_daily(analyze, time=datetime.time(23, 58, 59, 59),
                                         context=context)
-            context.job_queue.run_daily(save_config, time=datetime.time(20, 59, 59, 59), context=context)
+            context.job_queue.run_daily(save_config, time=datetime.time(23, 59, 59, 59), context=context)
         else:
             context.job_queue.run_monthly(data_clear, when=datetime.time(1), day=28,
                                           context=context)
