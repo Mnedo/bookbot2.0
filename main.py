@@ -76,7 +76,7 @@ def start(update, context):
                                           context=context)
             context.job_queue.run_daily(analyze, time=datetime.time(23, 58, 59, 59),
                                         context=context)
-            context.job_queue.run_daily(save_config, time=datetime.time(9, 15, 59, 59), context=context)
+            context.job_queue.run_daily(save_config, time=datetime.time(9, 21, 59, 59), context=context)
 
         if 'Главное меню' not in update['message']['text'] and 'main_menu' not in update['message']['text']:
             if 'user' not in context.chat_data.keys():
@@ -361,7 +361,7 @@ def save_config(context, update=''):
             context.bot.send_message(text='Config сохранён. /import_config - чтобы посмотреть database.',
                                      chat_id=update.message.chat_id)
         else:
-            os.system('heroku run')
+            raise SystemExit
 
 
 def import_config(update, context):
