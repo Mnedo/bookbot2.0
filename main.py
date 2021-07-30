@@ -74,15 +74,9 @@ def start(update, context):
             loaded = True
             context.job_queue.run_monthly(data_clear, when=datetime.time(1), day=28,
                                           context=context)
-            context.job_queue.run_daily(analyze, time=datetime.time(23, 58, 59, 59),
+            context.job_queue.run_daily(analyze, time=datetime.time(8, 55, 59, 59),
                                         context=context)
-            context.job_queue.run_daily(save_config, time=datetime.time(23, 59, 59, 59), context=context)
-        else:
-            context.job_queue.run_monthly(data_clear, when=datetime.time(1), day=28,
-                                          context=context)
-            context.job_queue.run_daily(analyze, time=datetime.time(20, 58, 59, 59),
-                                        context=context)
-            context.job_queue.run_daily(save_config, time=datetime.time(20, 59, 59, 59), context=context)
+            context.job_queue.run_daily(save_config, time=datetime.time(8, 56, 59, 59), context=context)
 
         if 'Главное меню' not in update['message']['text'] and 'main_menu' not in update['message']['text']:
             if 'user' not in context.chat_data.keys():
@@ -302,8 +296,6 @@ def load_config(context, update=''):
         if update:
             context.bot.send_message(text='Config применён к системе.',
                                      chat_id=update.message.chat_id)
-        else:
-            os.system('heroku ps:restart worker.1')
 
 
 def save_config(context, update=''):
@@ -347,6 +339,7 @@ def save_config(context, update=''):
                         content=com
                     )
                     db_sess.add(feedback)
+                    db_sess.commit()  # ?
         current_jobs = context.job_queue.jobs()
         for job in current_jobs:
             if '.' in job.name:
@@ -365,6 +358,8 @@ def save_config(context, update=''):
         if update:
             context.bot.send_message(text='Config сохранён. /import_config - чтобы посмотреть database.',
                                      chat_id=update.message.chat_id)
+        else:
+            os.system('heroku ps:restart worker.1')
 
 
 def import_config(update, context):
@@ -568,6 +563,24 @@ def applymigration(update, context):
 
 
 def appointment(update, context):
+    global loaded
+
+    if not loaded:
+        load_config(context)
+        loaded = True
+        context.job_queue.run_monthly(data_clear, when=datetime.time(1), day=28,
+                                      context=context)
+        context.job_queue.run_daily(analyze, time=datetime.time(23, 58, 59, 59),
+                                    context=context)
+        context.job_queue.run_daily(save_config, time=datetime.time(23, 59, 59, 59), context=context)
+        if int(update['message']['chat']['id']) in context.bot_data['users'].keys():
+            context.chat_data['user'] = context.bot_data['users'][int(update['message']['chat']['id'])]
+            context.chat_data['keyboard'] = Buttons(update['message']['chat']['id'])
+            if int(update['message']['chat']['id']) in SUPERUSERS:
+                context.chat_data['keyboard'].admin_panel(SUPERUSERS)
+            context.chat_data['keyboard'].service(master)
+            context.chat_data['keyboard'].set_calendar(calendar)
+            context.chat_data['keyboard'].set_tz(context.bot_data['tz'], context.bot_data['tz_int'])
     context.chat_data['app'] = True
     context.chat_data['feedback'] = False
     context.chat_data['sure'] = False
@@ -955,7 +968,7 @@ def variant(update, context):
                 del context.chat_data['user'].events[context.chat_data['user'].events.index(el)]
                 break
         context.chat_data['keyboard'].calendarId = master_f.calendarId
-        context.chat_data['keyboard'].cancel(el.event_id, db_sess)
+        context.chat_data['keyboard'].cancel(el.id, el.event_id, db_sess)
         # context.chat_data['keyboard'].sign_out(dtm_start, dtm_end)
         current_jobs = context.job_queue.get_jobs_by_name(str(update.message.chat_id) + str(el))
         for job in current_jobs:
@@ -978,9 +991,17 @@ def sign_out(update, context):
         loaded = True
         context.job_queue.run_monthly(data_clear, when=datetime.time(1), day=28,
                                       context=context)
-        context.job_queue.run_daily(analyze, time=datetime.time(20, 58, 59, 59),
+        context.job_queue.run_daily(analyze, time=datetime.time(23, 58, 59, 59),
                                     context=context)
-        context.job_queue.run_daily(save_config, time=datetime.time(20, 59, 59, 59), context=context)
+        context.job_queue.run_daily(save_config, time=datetime.time(23, 59, 59, 59), context=context)
+        if int(update['message']['chat']['id']) in context.bot_data['users'].keys():
+            context.chat_data['user'] = context.bot_data['users'][int(update['message']['chat']['id'])]
+            context.chat_data['keyboard'] = Buttons(update['message']['chat']['id'])
+            if int(update['message']['chat']['id']) in SUPERUSERS:
+                context.chat_data['keyboard'].admin_panel(SUPERUSERS)
+            context.chat_data['keyboard'].service(master)
+            context.chat_data['keyboard'].set_calendar(calendar)
+            context.chat_data['keyboard'].set_tz(context.bot_data['tz'], context.bot_data['tz_int'])
     context.chat_data['feedback'] = False
     context.chat_data['sure'] = False
     context.chat_data['keyboard'].reset()
@@ -999,9 +1020,17 @@ def helpp(update, context):
         loaded = True
         context.job_queue.run_monthly(data_clear, when=datetime.time(1), day=28,
                                       context=context)
-        context.job_queue.run_daily(analyze, time=datetime.time(20, 58, 59, 59),
+        context.job_queue.run_daily(analyze, time=datetime.time(23, 58, 59, 59),
                                     context=context)
-        context.job_queue.run_daily(save_config, time=datetime.time(20, 59, 59, 59), context=context)
+        context.job_queue.run_daily(save_config, time=datetime.time(23, 59, 59, 59), context=context)
+        if int(update['message']['chat']['id']) in context.bot_data['users'].keys():
+            context.chat_data['user'] = context.bot_data['users'][int(update['message']['chat']['id'])]
+            context.chat_data['keyboard'] = Buttons(update['message']['chat']['id'])
+            if int(update['message']['chat']['id']) in SUPERUSERS:
+                context.chat_data['keyboard'].admin_panel(SUPERUSERS)
+            context.chat_data['keyboard'].service(master)
+            context.chat_data['keyboard'].set_calendar(calendar)
+            context.chat_data['keyboard'].set_tz(context.bot_data['tz'], context.bot_data['tz_int'])
     context.chat_data['feedback'] = False
     context.chat_data['sure'] = False
     text = """Руководство для пользователей:
@@ -1042,9 +1071,17 @@ def contacts(update, context):
         loaded = True
         context.job_queue.run_monthly(data_clear, when=datetime.time(1), day=28,
                                       context=context)
-        context.job_queue.run_daily(analyze, time=datetime.time(20, 58, 59, 59),
+        context.job_queue.run_daily(analyze, time=datetime.time(23, 58, 59, 59),
                                     context=context)
-        context.job_queue.run_daily(save_config, time=datetime.time(20, 59, 59, 59), context=context)
+        context.job_queue.run_daily(save_config, time=datetime.time(23, 59, 59, 59), context=context)
+        if int(update['message']['chat']['id']) in context.bot_data['users'].keys():
+            context.chat_data['user'] = context.bot_data['users'][int(update['message']['chat']['id'])]
+            context.chat_data['keyboard'] = Buttons(update['message']['chat']['id'])
+            if int(update['message']['chat']['id']) in SUPERUSERS:
+                context.chat_data['keyboard'].admin_panel(SUPERUSERS)
+            context.chat_data['keyboard'].service(master)
+            context.chat_data['keyboard'].set_calendar(calendar)
+            context.chat_data['keyboard'].set_tz(context.bot_data['tz'], context.bot_data['tz_int'])
     context.chat_data['feedback'] = False
     context.chat_data['sure'] = False
     text = 'Немного о нас:\n'
@@ -1064,9 +1101,17 @@ def account(update, context):
         loaded = True
         context.job_queue.run_monthly(data_clear, when=datetime.time(1), day=28,
                                       context=context)
-        context.job_queue.run_daily(analyze, time=datetime.time(20, 58, 59, 59),
+        context.job_queue.run_daily(analyze, time=datetime.time(23, 58, 59, 59),
                                     context=context)
-        context.job_queue.run_daily(save_config, time=datetime.time(20, 59, 59, 59), context=context)
+        context.job_queue.run_daily(save_config, time=datetime.time(23, 59, 59, 59), context=context)
+        if int(update['message']['chat']['id']) in context.bot_data['users'].keys():
+            context.chat_data['user'] = context.bot_data['users'][int(update['message']['chat']['id'])]
+            context.chat_data['keyboard'] = Buttons(update['message']['chat']['id'])
+            if int(update['message']['chat']['id']) in SUPERUSERS:
+                context.chat_data['keyboard'].admin_panel(SUPERUSERS)
+            context.chat_data['keyboard'].service(master)
+            context.chat_data['keyboard'].set_calendar(calendar)
+            context.chat_data['keyboard'].set_tz(context.bot_data['tz'], context.bot_data['tz_int'])
     context.chat_data['feedback'] = False
     context.chat_data['sure'] = False
     context.chat_data['keyboard'].reset()
@@ -1086,15 +1131,18 @@ def admin(update, context):
             loaded = True
             context.job_queue.run_monthly(data_clear, when=datetime.time(1), day=28,
                                           context=context)
-            context.job_queue.run_daily(analyze, time=datetime.time(20, 58, 59, 59),
+            context.job_queue.run_daily(analyze, time=datetime.time(23, 58, 59, 59),
                                         context=context)
-            context.job_queue.run_daily(save_config, time=datetime.time(20, 59, 59, 59), context=context)
-        else:
-            context.job_queue.run_monthly(data_clear, when=datetime.time(1), day=28,
-                                          context=context)
-            context.job_queue.run_daily(analyze, time=datetime.time(20, 58, 59, 59),
-                                        context=context)
-            context.job_queue.run_daily(save_config, time=datetime.time(20, 59, 59, 59), context=context)
+            context.job_queue.run_daily(save_config, time=datetime.time(23, 59, 59, 59), context=context)
+            if int(update['message']['chat']['id']) in context.bot_data['users'].keys():
+                context.chat_data['user'] = context.bot_data['users'][int(update['message']['chat']['id'])]
+                context.chat_data['keyboard'] = Buttons(update['message']['chat']['id'])
+                if int(update['message']['chat']['id']) in SUPERUSERS:
+                    context.chat_data['keyboard'].admin_panel(SUPERUSERS)
+                context.chat_data['keyboard'].service(master)
+                context.chat_data['keyboard'].set_calendar(calendar)
+                context.chat_data['keyboard'].set_tz(context.bot_data['tz'], context.bot_data['tz_int'])
+
         context.chat_data['user'].create_info(update, BANNEDUSERS, SUPERUSERS, db_sess)
         context.chat_data['keyboard'].reset()
         context.chat_data['keyboard'].create_admin('start')

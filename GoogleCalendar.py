@@ -114,9 +114,12 @@ class GoogleCalendar(object):
         counter = 0
         all = 0
         for event in events:
+            if 'summary' not in event.keys():
+                all += 1
             if event['summary'] not in day:
-                if 'Сделано в telegram' in event['description']:
-                    counter += 1
+                if 'description' in event.keys():
+                    if 'Сделано в telegram' in event['description']:
+                        counter += 1
                 all += 1
         return [counter, all]
 

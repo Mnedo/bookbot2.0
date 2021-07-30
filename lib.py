@@ -394,11 +394,11 @@ class Buttons:
     def sign_out(self, dtm_start, dtm_end):
         self.calendar.sign_out(dtm_start, dtm_end, self.calendarId)
 
-    def cancel(self, id, db_sess):
-        event = db_sess.query(EventRes).filter(EventRes.event_id == id).first()
+    def cancel(self, id, event_id, db_sess):
+        event = db_sess.query(EventRes).filter(EventRes.id == id).first()
         db_sess.delete(event)
         db_sess.commit()
-        self.calendar.cancel(self.calendarId, id)
+        self.calendar.cancel(self.calendarId, event_id)
 
     def create_admin(self, command):
         if self.is_admin(self.id):
