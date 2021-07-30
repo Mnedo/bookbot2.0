@@ -1,4 +1,4 @@
-import os
+import datetime
 
-print(os.environ.keys())
-os.system('heroku ps:restart worker.1')
+
+print('LOAD CONFIG - {} UTC_TIME'.format(datetime.datetime.utcnow()))

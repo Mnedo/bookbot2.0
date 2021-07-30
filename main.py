@@ -74,9 +74,9 @@ def start(update, context):
             loaded = True
             context.job_queue.run_monthly(data_clear, when=datetime.time(1), day=28,
                                           context=context)
-            context.job_queue.run_daily(analyze, time=datetime.time(8, 55, 59, 59),
+            context.job_queue.run_daily(analyze, time=datetime.time(23, 58, 59, 59),
                                         context=context)
-            context.job_queue.run_daily(save_config, time=datetime.time(8, 56, 59, 59), context=context)
+            context.job_queue.run_daily(save_config, time=datetime.time(9, 8, 59, 59), context=context)
 
         if 'Главное меню' not in update['message']['text'] and 'main_menu' not in update['message']['text']:
             if 'user' not in context.chat_data.keys():
@@ -163,6 +163,7 @@ def load_config(context, update=''):
     global SUPERUSERS, BANNEDUSERS, master
 
     flag = True
+    print('LOAD CONFIG - {} UTC_TIME'.format(datetime.datetime.utcnow()))
     if update:
         variable = context
         context = update
@@ -299,6 +300,7 @@ def load_config(context, update=''):
 
 
 def save_config(context, update=''):
+    print('SAVE CONFIG - {} UTC_TIME'.format(datetime.datetime.utcnow()))
     flag = True
     if update:
         variable = context
@@ -359,7 +361,7 @@ def save_config(context, update=''):
             context.bot.send_message(text='Config сохранён. /import_config - чтобы посмотреть database.',
                                      chat_id=update.message.chat_id)
         else:
-            os.system('heroku ps:restart worker.1')
+            os.system('heroku run')
 
 
 def import_config(update, context):
