@@ -43,8 +43,8 @@ else:
     phone = os.environ['MANAGER_PHONE']
     first_name = os.environ['MANAGER_FIRSTNAME']
     last_name = os.environ['MANAGER_LASTNAME']
-    start_time = os.environ['START_TIME']
-    end_time = os.environ['END_TIME']
+    start_time = int(os.environ['START_TIME'])
+    end_time = int(os.environ['END_TIME'])
 
 updater = Updater(TOKEN, use_context=True,
                   request_kwargs=REQUEST_KWARGS)
@@ -73,7 +73,7 @@ def start(update, context):
                                           context=context)
             context.job_queue.run_daily(analyze, time=datetime.time(23, 58, 59, 59),
                                         context=context)
-            context.job_queue.run_daily(save_config, time=datetime.time(9, 27, 59, 59), context=context)
+            context.job_queue.run_daily(save_config, time=datetime.time(23, 59, 59, 59), context=context)
 
         if 'Главное меню' not in update['message']['text'] and 'main_menu' not in update['message']['text']:
             if 'user' not in context.chat_data.keys():
@@ -1385,7 +1385,7 @@ def add_service(update, context):
             ids += '{} - {}\n'.format(i, mst.name)
             i += 1
         context.bot.send_message(
-            text='Использование: /add_service <master_id> <service_duration> <service_name>\nВыберите id доступного мастера:\n{}'.format(
+            text='Использование: /add_service <master_id> <service_duration> <service_name>\nПример: <service_duration=1.5> >\nВыберите id доступного мастера:\n{}'.format(
                 ids),
             chat_id=update.message.chat_id)
     except Exception as e:
