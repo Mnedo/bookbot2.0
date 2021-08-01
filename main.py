@@ -73,7 +73,7 @@ def start(update, context):
                                           context=context)
             context.job_queue.run_daily(analyze, time=datetime.time(23, 58, 59, 59),
                                         context=context)
-            context.job_queue.run_daily(save_config, time=datetime.time(9, 27, 59, 59), context=context)
+            context.job_queue.run_daily(save_config, time=datetime.time(23, 59, 59, 59), context=context)
 
         if 'Главное меню' not in update['message']['text'] and 'main_menu' not in update['message']['text']:
             if 'user' not in context.chat_data.keys():
