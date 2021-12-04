@@ -638,7 +638,7 @@ def handler(update, context):
                                              reply_markup=markup)
                 else:
                     context.chat_data['keyboard'].reset()
-                    markup = ReplyKeyboardMarkup(keyboard=[[KeyboardButton('/Ввести в ручную')], [
+                    markup = ReplyKeyboardMarkup(keyboard=[[
                         KeyboardButton('/Отправить свой контакт\n(рекомендуем)',
                                        request_contact=True)]],
                                                  one_time_keyboard=False, resize_keyboard=True)
